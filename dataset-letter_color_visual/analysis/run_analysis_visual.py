@@ -81,7 +81,7 @@ msgs                    = ['start recording', 'stop recording', 'phase 1', 'phas
 phases                  = ['phase 7'] # of interest for analysis
 time_locked             = ['feed_locked'] # events to consider (note: these have to match phases variable above)
 baseline_window         = 0.5 # seconds before event of interest
-pupil_step_lim          = [[-baseline_window, 3.0]] # size of pupil trial kernels in seconds with respect to first event, first element should max = 0!
+pupil_step_lim          = [[-baseline_window, 3.5]] # size of pupil trial kernels in seconds with respect to first event, first element should max = 0!
 sample_rate             = 1000 # Hz
 break_trials            = [60, 120, 180]  # which trial comes AFTER each break
 
@@ -140,6 +140,7 @@ if trial_process:
 # -----------------------
 # 2AFC Decision Task, MEAN responses and group level statistics 
 # ----------------------- 
+
 if higher_level:  
     higherLevel = higher.higherLevel(
         subjects                = subjects, 
@@ -149,8 +150,7 @@ if higher_level:
         time_locked             = time_locked,
         pupil_step_lim          = pupil_step_lim,                
         baseline_window         = baseline_window,              
-        pupil_time_of_interest  = [[[0.25,1.0], [2.5,3.0]]], # time windows to average phasic pupil, per event, in higher.plot_evoked_pupil
-        freq_cond               = 'frequency'   # determines how to group the conditions based on actual frequencies
+        pupil_time_of_interest  = [[[0.075,0.95]]], # time windows to average phasic pupil, per event, in higher.plot_evoked_pupil
         )
     # higherLevel.higherlevel_get_phasics()       # computes phasic pupil for each subject (adds to log files)
     # higherLevel.create_subjects_dataframe(blocks = break_trials+[240])  # add baselines, concantenates all subjects, flags missed trials, saves higher level data frame
@@ -159,7 +159,7 @@ if higher_level:
     # higherLevel.average_conditions()           # group level data frames for all main effects + interaction
     # higherLevel.plot_phasic_pupil_pe()         # plots the interaction between the frequency and accuracy
     # higherLevel.plot_behavior()                # simple bar plots of accuracy and RT per mapping condition
-    # higherLevel.individual_differences()       # individual differences correlation between behavior and pupil
+    # higherLevel.correlation_behavior_pupil()   # individual differences correlation between behavior and pupil
     
     ''' Evoked pupil response
     '''
@@ -168,12 +168,12 @@ if higher_level:
     
     ''' Correlation with AQ score
     '''
-    # higherLevel.dataframe_evoked_correlation_AQ(df=ppns)
-    # higherLevel.plot_evoked_correlation_AQ()
-    higherLevel.regression_pupil_AQ(df=ppns)  # multiple regression of AQ components (IVs) onto average pupil response in early time window
-    # higherLevel.correlation_frequency_AQ(df=ppns)
-    # higherLevel.correlation_accuracy_AQ(df=ppns)
-    # higherLevel.correlation_interaction_AQ(df=ppns)
+    # higherLevel.dataframe_evoked_correlation_AQ(df=ppns)  # compute correlation of AQ onto pupil conditions across pupil time course
+    # higherLevel.plot_evoked_correlation_AQ()              # plot correlation of AQ onto pupil conditions across pupil timecourse
+    # higherLevel.regression_pupil_AQ(df=ppns)              # multiple regression of AQ components (IVs) onto average pupil response in early time window
+    # higherLevel.correlation_AQ(df=ppns)                   # correlations between pupil, RT conditions and AQ
+    
+    # not using
     
     ''' Ideal learner model
     '''
@@ -188,7 +188,7 @@ if higher_level:
     # higherLevel.dataframe_evoked_correlation()
     # higherLevel.plot_pupil_information_regression_evoked()
     
-    # not using
+    # extra
     # higherLevel.partial_correlation_information()
     # higherLevel.plot_information_pe()         # plots the interaction between the frequency and accuracy
     # higherLevel.information_evoked_get_phasics()
