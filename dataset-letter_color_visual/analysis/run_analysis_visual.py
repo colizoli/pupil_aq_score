@@ -157,7 +157,7 @@ if higher_level:
     ''' Note: the functions after this are using: task-letter_color_visual_decision_subjects.csv
     '''
     # higherLevel.average_conditions()           # group level data frames for all main effects + interaction
-    # higherLevel.plot_phasic_pupil_pe()         # plots the interaction between the frequency and accuracy
+    higherLevel.plot_phasic_pupil_pe()         # plots the interaction between the frequency and accuracy
     # higherLevel.plot_behavior()                # simple bar plots of accuracy and RT per mapping condition
     # higherLevel.correlation_behavior_pupil()   # individual differences correlation between behavior and pupil
     
@@ -171,7 +171,7 @@ if higher_level:
     # higherLevel.dataframe_evoked_correlation_AQ(df=ppns)  # compute correlation of AQ onto pupil conditions across pupil time course
     # higherLevel.plot_evoked_correlation_AQ()              # plot correlation of AQ onto pupil conditions across pupil timecourse
     # higherLevel.regression_pupil_AQ(df=ppns)              # multiple regression of AQ components (IVs) onto average pupil response in early time window
-    # higherLevel.correlation_AQ(df=ppns)                   # correlations between pupil, RT conditions and AQ
+    higherLevel.correlation_AQ(df=ppns)                   # correlations between pupil, RT conditions and AQ
     
     # not using
     
