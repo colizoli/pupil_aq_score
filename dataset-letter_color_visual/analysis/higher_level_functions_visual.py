@@ -600,7 +600,58 @@ class higherLevel(object):
         print('success: average_conditions')
 
 
-    def plot_phasic_pupil_pe(self,):
+    def plot_phasic_pupil_unsigned_pe(self,):
+        """Plot the phasic pupil across frequency conditions.
+        
+        Notes
+        -----
+        GROUP LEVEL DATA
+        x-axis is frequency conditions.
+        """        
+        dvs = ['pupil_feed_locked_t1', 'pupil_baseline_feed_locked']
+        ylabels = ['Pupil response\n(% signal change)', 'Pupil response\n(% signal change)', ]
+        factor = 'frequency'
+        xlabel = 'Letter-color frequency'
+        xticklabels = ['20%','40%','80%'] 
+        
+        xind = np.arange(len(xticklabels))
+                
+        for dvi,pupil_dv in enumerate(dvs):
+            
+            fig = plt.figure(figsize=(2, 2))
+            ax = fig.add_subplot(111)
+            
+            DFIN = pd.read_csv(os.path.join(self.trial_bin_folder, '{}_{}_{}.csv'.format(self.exp, factor, pupil_dv)), float_precision='%.16f')
+            DFIN = DFIN.loc[:, ~DFIN.columns.str.contains('^Unnamed')] # drop all unnamed columns
+            
+            # Group average per BIN WINDOW
+            GROUP = pd.DataFrame(DFIN.groupby(factor)[pupil_dv].agg(['mean', 'std']).reset_index())
+            GROUP['sem'] = np.true_divide(GROUP['std'], np.sqrt(len(self.subjects)))
+            print(GROUP)
+                        
+            # plot
+            ax.bar(xind, np.array(GROUP['mean']), yerr=np.array(GROUP['sem']),  capsize=3, color=(0,0,0,0), edgecolor='black', ecolor='black')
+            
+            # individual points, repeated measures connected with lines
+            DFIN = DFIN.groupby(['subject',factor])[pupil_dv].mean() # hack for unstacking to work
+            DFIN = DFIN.unstack(factor)
+            for s in np.array(DFIN):
+                ax.plot(xind, s, linestyle='-', marker='o', markersize=3, fillstyle='full', color='black', alpha=.2) # marker, line, black
+
+            # set figure parameters
+            ax.set_title('{}'.format(pupil_dv))                
+            ax.set_ylabel(ylabels[dvi])
+            ax.set_xlabel(xlabel)
+            ax.set_xticks(xind)
+            ax.set_xticklabels(xticklabels)
+
+            sns.despine(offset=10, trim=True)
+            plt.tight_layout()
+            fig.savefig(os.path.join(self.figure_folder, '{}_frequency_{}.pdf'.format(self.exp, pupil_dv)))
+        print('success: plot_phasic_pupil_unsigned_pe')
+        
+        
+    def plot_phasic_pupil_signed_pe(self,):
         """Plot the phasic pupil target_locked interaction frequency and accuracy in each trial bin window.
         
         Notes
@@ -661,7 +712,7 @@ class higherLevel(object):
             sns.despine(offset=10, trim=True)
             plt.tight_layout()
             fig.savefig(os.path.join(self.figure_folder, '{}_correct-frequency_{}_lines.pdf'.format(self.exp, pupil_dv)))
-        print('success: plot_phasic_pupil_pe')
+        print('success: plot_phasic_pupil_signed_pe')
         
         
     def plot_behavior(self,):

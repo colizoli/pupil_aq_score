@@ -162,20 +162,23 @@ if higher_level:
     
     ''' Correlation with AQ score
     '''
-    higherLevel.dataframe_evoked_correlation_AQ(df=ppns)  # compute correlation of AQ onto pupil conditions across pupil time course
-    higherLevel.plot_evoked_correlation_AQ()              # plot correlation of AQ onto pupil conditions across pupil timecourse
+    # higherLevel.dataframe_evoked_correlation_AQ(df=ppns)  # compute correlation of AQ onto pupil conditions across pupil time course
+    # higherLevel.plot_evoked_correlation_AQ()              # plot correlation of AQ onto pupil conditions across pupil timecourse
     
     ''' Behavior and average pupil response
     '''
     # higherLevel.higherlevel_get_phasics()       # computes phasic pupil for each subject (adds to log files)
     # higherLevel.create_subjects_dataframe(blocks = break_trials+[240])  # update after phasic pupil added
     # higherLevel.average_conditions()           # group level data frames for all main effects + interaction
-    # higherLevel.plot_phasic_pupil_pe()         # plots the interaction between the frequency and accuracy
     # higherLevel.plot_behavior()                # simple bar plots of accuracy and RT per mapping condition
-    # higherLevel.correlation_behavior_pupil()   # individual differences correlation between behavior and pupil
     # higherLevel.regression_pupil_AQ(df=ppns)   # multiple regression of AQ components (IVs) onto average pupil response in early time window
     # higherLevel.correlation_AQ(df=ppns)        # correlations between pupil, RT conditions and AQ
     # higherLevel.plot_AQ_histogram(df=ppns)       # plot a histogram of the AQ score
+    higherLevel.plot_phasic_pupil_unsigned_pe()  # plots the difference between the frequency conditions
+    
+    ''' Supplementary Materials
+    '''
+    # higherLevel.plot_phasic_pupil_signed_pe()  # plots the interaction between the frequency and accuracy
     
     # not using
     
@@ -193,6 +196,9 @@ if higher_level:
     # higherLevel.plot_pupil_information_regression_evoked()
     
     # extra
+    
+    # higherLevel.correlation_behavior_pupil()   # individual differences correlation between behavior and pupil
+    
     # higherLevel.partial_correlation_information()
     # higherLevel.plot_information_pe()         # plots the interaction between the frequency and accuracy
     # higherLevel.information_evoked_get_phasics()
