@@ -18,6 +18,7 @@ import os, sys, datetime
 import numpy as np
 import scipy as sp
 import scipy.stats as stats
+from scipy import signal
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -277,7 +278,7 @@ class higherLevel(object):
             for sig in s_bar:
                 ax.hlines(((ax.get_ylim()[1] - ax.get_ylim()[0]) / yloc)+ax.get_ylim()[0], x[int(sig[0])]-(np.diff(x)[0] / 2.0), x[int(sig[1])]+(np.diff(x)[0] / 2.0), color=color, alpha=1, linewidth=2.5)
 
-    def timeseries_fwer_correction(self,  xind, color, ax, pvals, yloc=5, alpha=0.05, method='fdr_bh'):
+    def timeseries_fwer_correction(self,  xind, color, ax, pvals, alpha, yloc=5, method='fdr_bh'):
         """Add Family-Wise Error Rate correction bar on time series plot.
         
         Parameters
@@ -309,7 +310,8 @@ class higherLevel(object):
         
         # FDR CORRECTED
         yloc = yloc + 5
-        reject, pvals_adjusted, alphaA, alphaB = statsmodels.stats.multitest.multipletests(pvals, alpha, method='fdr_bh', is_sorted=False, returnsorted=False)
+        reject, pvals_adjusted, alphaA, alphaB = statsmodels.stats.multitest.multipletests(pvals, alpha, method=method, is_sorted=False, returnsorted=False)
+                
         sig_indices = np.array(pvals_adjusted < alpha, dtype=int)
         yvalues = sig_indices * (((ax.get_ylim()[1] - ax.get_ylim()[0]) / yloc)+ax.get_ylim()[0])
         yvalues[yvalues == 0] = np.nan # or use np.nan
@@ -863,6 +865,7 @@ class higherLevel(object):
         # plot time series
         i=0
         TS = np.array(COND.iloc[:,-kernel:]) # index from back to avoid extra unnamed column pandas
+        
         self.tsplot(ax, TS, color='k', label=xticklabels[i])
         self.cluster_sig_bar_1samp(array=TS, x=pd.Series(range(TS.shape[-1])), yloc=1, color='black', ax=ax, threshold=0.05, nrand=5000, cluster_correct=True)
     
@@ -1169,10 +1172,11 @@ class higherLevel(object):
                     term1 = np.subtract(this_pupil[(this_pupil['frequency']==80) & (this_pupil['correct']==0)].copy() , this_pupil[(this_pupil['frequency']==80) & (this_pupil['correct']==1)].copy() )
                     term2 = np.subtract(this_pupil[(this_pupil['frequency']==20) & (this_pupil['correct']==0)].copy() ,  this_pupil[(this_pupil['frequency']==20) & (this_pupil['correct']==1)].copy() )
                     this_pupil = np.subtract(term1, term2)
-                    
+                                 
                 # loop timepoints, regress
                 save_timepoint_r = []
                 save_timepoint_p = []
+                
                 for col in evoked_cols:
                     Y = this_pupil[col] # pupil
                     X = aq_scores # iv
@@ -1182,7 +1186,7 @@ class higherLevel(object):
                         shell()
                     save_timepoint_r.append(self.fisher_transform(r))
                     save_timepoint_p.append(pval)
-                    
+                                    
                 # add column for each subject with timepoints as rows
                 df_out['{}_r'.format(cond)] = np.array(save_timepoint_r)
                 df_out['{}_pval'.format(cond)] = np.array(save_timepoint_p)
@@ -1234,7 +1238,7 @@ class higherLevel(object):
             # Compute means, sems across group
             TS = np.array(CORR['{}_r'.format(cond)])
             pvals = np.array(CORR['{}_pval'.format(cond)])
-            
+                        
             ax.plot(pd.Series(range(TS.shape[-1])), TS, color=colors[i], label=labels[i])
                 
             # stats        
@@ -1403,6 +1407,35 @@ class higherLevel(object):
             fig.savefig(os.path.join(self.figure_folder,'{}_correlation_{}.pdf'.format(self.exp, iv)))
         print('success: correlation_AQ')
 
+
+    def plot_AQ_histogram(self, df):
+        
+        AQ = df
+        AQ = AQ.loc[:, ~AQ.columns.str.contains('^Unnamed')] # remove all unnamed columns
+        
+        ivs = ['aq_score', 'social', 'attention', 'communication', 'fantasy', 'detail']
+        
+        # new figure for every IV
+        fig = plt.figure(figsize=(2,2*len(ivs)))
+        counter = 1 # subplot counter
+        
+        for iv in ivs:
+            ax = fig.add_subplot(len(ivs), 1, counter) # 1 subplot per bin window
+            ax.set_box_aspect(1)
+
+            ax.hist(np.array(AQ[iv]), bins=10)
+            
+            # set figure parameters
+            # ax.set_title('{}'.format(iv))
+            ax.set_ylabel('# participants')
+            ax.set_xlabel(iv)
+            
+            counter = counter + 1
+                    
+            plt.tight_layout()
+            fig.savefig(os.path.join(self.figure_folder,'{}_AQ_histogram.pdf'.format(self.exp)))
+        print('success: plot_AQ_histogram')
+        
 
     # def confound_rt_pupil(self,):
     #     """Compute single-trial correlation between RT and pupil_dvs, subject and group level

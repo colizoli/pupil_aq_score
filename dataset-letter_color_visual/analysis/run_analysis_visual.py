@@ -152,15 +152,9 @@ if higher_level:
         baseline_window         = baseline_window,              
         pupil_time_of_interest  = [[[0.075,0.95]]], # time windows to average phasic pupil, per event, in higher.plot_evoked_pupil
         )
-    # higherLevel.higherlevel_get_phasics()       # computes phasic pupil for each subject (adds to log files)
     # higherLevel.create_subjects_dataframe(blocks = break_trials+[240])  # add baselines, concantenates all subjects, flags missed trials, saves higher level data frame
     ''' Note: the functions after this are using: task-letter_color_visual_decision_subjects.csv
     '''
-    # higherLevel.average_conditions()           # group level data frames for all main effects + interaction
-    higherLevel.plot_phasic_pupil_pe()         # plots the interaction between the frequency and accuracy
-    # higherLevel.plot_behavior()                # simple bar plots of accuracy and RT per mapping condition
-    # higherLevel.correlation_behavior_pupil()   # individual differences correlation between behavior and pupil
-    
     ''' Evoked pupil response
     '''
     # higherLevel.dataframe_evoked_pupil_higher()  # per event of interest, outputs one dataframe or np.array? for all trials for all subject on pupil time series
@@ -168,10 +162,20 @@ if higher_level:
     
     ''' Correlation with AQ score
     '''
-    # higherLevel.dataframe_evoked_correlation_AQ(df=ppns)  # compute correlation of AQ onto pupil conditions across pupil time course
-    # higherLevel.plot_evoked_correlation_AQ()              # plot correlation of AQ onto pupil conditions across pupil timecourse
-    # higherLevel.regression_pupil_AQ(df=ppns)              # multiple regression of AQ components (IVs) onto average pupil response in early time window
-    higherLevel.correlation_AQ(df=ppns)                   # correlations between pupil, RT conditions and AQ
+    higherLevel.dataframe_evoked_correlation_AQ(df=ppns)  # compute correlation of AQ onto pupil conditions across pupil time course
+    higherLevel.plot_evoked_correlation_AQ()              # plot correlation of AQ onto pupil conditions across pupil timecourse
+    
+    ''' Behavior and average pupil response
+    '''
+    # higherLevel.higherlevel_get_phasics()       # computes phasic pupil for each subject (adds to log files)
+    # higherLevel.create_subjects_dataframe(blocks = break_trials+[240])  # update after phasic pupil added
+    # higherLevel.average_conditions()           # group level data frames for all main effects + interaction
+    # higherLevel.plot_phasic_pupil_pe()         # plots the interaction between the frequency and accuracy
+    # higherLevel.plot_behavior()                # simple bar plots of accuracy and RT per mapping condition
+    # higherLevel.correlation_behavior_pupil()   # individual differences correlation between behavior and pupil
+    # higherLevel.regression_pupil_AQ(df=ppns)   # multiple regression of AQ components (IVs) onto average pupil response in early time window
+    # higherLevel.correlation_AQ(df=ppns)        # correlations between pupil, RT conditions and AQ
+    # higherLevel.plot_AQ_histogram(df=ppns)       # plot a histogram of the AQ score
     
     # not using
     
