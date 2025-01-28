@@ -150,26 +150,31 @@ if higher_level:
         baseline_window         = baseline_window,              
         pupil_time_of_interest  = [[[0.075,0.95]]], # time windows to average phasic pupil, per event, in higher.plot_evoked_pupil
         )
-    higherLevel.create_subjects_dataframe(blocks = break_trials+[240])  # add baselines, concantenates all subjects, flags missed trials, saves higher level data frame
+    # higherLevel.create_subjects_dataframe(blocks = break_trials+[240])  # add baselines, concantenates all subjects, flags missed trials, saves higher level data frame
     ''' Note: the functions after this are using: task-letter_color_visual_decision_subjects.csv
     '''
     ''' Evoked pupil response
     '''
-    higherLevel.dataframe_evoked_pupil_higher()  # per event of interest, outputs one dataframe or np.array? for all trials for all subject on pupil time series
+    # higherLevel.dataframe_evoked_pupil_higher()  # per event of interest, outputs one dataframe or np.array? for all trials for all subject on pupil time series
     
     ''' Correlation with AQ score across evoked
     '''
-    higherLevel.dataframe_evoked_correlation_AQ(df=ppns)  # compute correlation of AQ onto pupil conditions across pupil time course
-    higherLevel.plot_evoked_correlation_AQ()              # plot correlation of AQ onto pupil conditions across pupil timecourse
+    # higherLevel.dataframe_evoked_correlation_AQ(df=ppns)  # compute correlation of AQ onto pupil conditions across pupil time course
+    # higherLevel.plot_evoked_correlation_AQ()              # plot correlation of AQ onto pupil conditions across pupil timecourse
     
     ''' Average pupil response (time window) and c
     '''
-    higherLevel.higherlevel_get_phasics()         # computes phasic pupil in time window of interest for each subject (adds to log files)
-    higherLevel.create_subjects_dataframe(blocks = break_trials+[240])  # update after phasic pupil added
-    higherLevel.average_conditions()              # group level data frames for all main effects + interaction
-    higherLevel.regression_pupil_AQ(df=ppns)      # multiple regression of AQ components (IVs) onto average pupil response in time window of interest
-    higherLevel.correlation_AQ(df=ppns)           # correlations between pupil, RT conditions and AQ
-    higherLevel.plot_AQ_histogram(df=ppns)        # plot a histogram of the AQ score
-    higherLevel.plot_phasic_pupil_unsigned_pe()   # plots the mean pupil response as a function of the frequency conditions
+    # higherLevel.higherlevel_get_phasics()         # computes phasic pupil in time window of interest for each subject (adds to log files)
+    # higherLevel.create_subjects_dataframe(blocks = break_trials+[240])  # update after phasic pupil added
+    # higherLevel.average_conditions()              # group level data frames for all main effects + interaction
+    # higherLevel.regression_pupil_AQ(df=ppns)      # multiple regression of AQ components (IVs) onto average pupil response in time window of interest
+    # higherLevel.correlation_AQ(df=ppns)           # correlations between pupil, RT conditions and AQ
+    # higherLevel.plot_AQ_histogram(df=ppns)        # plot a histogram of the AQ score
+    # higherLevel.plot_phasic_pupil_unsigned_pe()   # plots the mean pupil response as a function of the frequency conditions
+    # higherLevel.plot_AQ_covariance(df=ppns)         # plots the correlation matrix of the AQ sub-scores
     
+    ''' Regression pupil~AQ by block
+    '''
+    # higherLevel.regression_pupil_AQ_blocks(df=ppns)    # by block, multiple regression of AQ components (IVs) onto average pupil response in time window of interest
+    higherLevel.plot_regression_pupil_AQ_blocks()       # by block, plot pupil~AQ regression results
     

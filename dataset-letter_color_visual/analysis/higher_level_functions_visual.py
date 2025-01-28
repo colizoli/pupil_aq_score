@@ -876,6 +876,154 @@ class higherLevel(object):
             plt.tight_layout()
             fig.savefig(os.path.join(self.figure_folder, '{}_frequency_{}.pdf'.format(self.exp, pupil_dv)))
         print('success: plot_phasic_pupil_unsigned_pe')
+
+
+    def plot_AQ_covariance(self, df):
+        """Plot the covariance matrix of the AQ sub-scores.
+        """
+        
+        AQ = df
+        AQ = AQ.loc[:, ~AQ.columns.str.contains('^Unnamed')] # remove all unnamed columns
+        
+        ivs = ['social', 'attention', 'communication', 'fantasy', 'detail']
+        this_df = AQ[ivs].copy()
+                
+        # new figure for every IV
+        fig = plt.figure(figsize=(4,4))        
+        ax = fig.add_subplot(111) # 1 subplot per bin window
+        ax.set_box_aspect(1)
+
+        ax = sns.heatmap(this_df.corr(), vmin=0, vmax=1, annot=True)
+        
+        # set figure parameters
+        # ax.set_title('{}'.format(iv))
+        # ax.set_ylabel('# participants')
+        # ax.set_xlabel(iv)
+                        
+        plt.tight_layout()
+        fig.savefig(os.path.join(self.figure_folder,'{}_AQ_correlation_matrix.pdf'.format(self.exp)))
+        print('success: plot_AQ_covariance')
         
         
+    def regression_pupil_AQ_blocks(self, df):
+        """BY BLOCK Multiple regression of AQ components (IVs) onto average pupil response in early time window. Use 20%-80% pupil response as DV.
+
+        Notes
+        -----
+        print(results.summary())
+        Quantities of interest can be extracted directly from the fitted model. Type dir(results) for a full list. Here are some examples:
+        print('Parameters: ', results.params)
+        print('R2: ', results.rsquared)
+        """
         
+        AQ = df        
+        ivs = ['social', 'attention','communication','fantasy','detail']
+        cond = 'block-frequency'
+        dv = 'pupil_feed_locked_t1'
+                
+        pd.set_option('display.float_format', lambda x: '%.16f' % x) # suppress scientific notation in pandas
+        
+        df_out = pd.DataFrame() # timepoints x condition
+        df_conf_out = pd.DataFrame() # save confidence intervals for plotting
+        
+        # task-letter_color_visual_decision_frequency_pupil_feed_locked_t1.csv
+        DF = pd.read_csv(os.path.join(self.trial_bin_folder,'{}_{}_{}.csv'.format(self.exp, cond, dv)), float_precision='%.16f')
+        DF = DF.loc[:, ~DF.columns.str.contains('^Unnamed')] # remove all unnamed columns
+        
+        # merge AQ and pupil dataframes on subject to make sure have only data containing AQ scores
+        this_pupil = DF.loc[DF['subject'].isin(AQ['subject'])]
+               
+        for block in [1,2,3,4]:
+            
+            this_block = this_pupil[this_pupil['block']==block].copy()
+            # condition = frequency
+            this_block = np.subtract(this_block[this_block['frequency']==20].copy(), this_block[this_block['frequency']==80].copy()) 
+            
+            # ordinary least squares regression
+            Y = this_block[dv].reset_index(drop=True)
+            X = AQ[ivs].reset_index(drop=True)
+            X = sm.add_constant(X)
+            model = sm.OLS(Y,X)
+            results = model.fit()
+            results.params
+            print(results.summary())
+            
+            # save model results in output file
+            out_path = os.path.join(self.jasp_folder,'{}_{}_{}_block{}_OLS_summary.csv'.format(self.exp, cond, dv, block))
+
+            text_file = open(out_path, "w")
+            text_file.write(results.summary().as_text())
+            text_file.close()
+            
+            # save confidence intervals, betas, and model fit for plotting
+            save_conf_int = pd.DataFrame(results.conf_int())
+            save_conf_int['block'] = np.repeat(block, len(save_conf_int))
+            save_conf_int['beta'] = results.params # beta coefficients
+            save_conf_int['bse'] = results.bse # standard error
+            save_conf_int['tvalues'] = results.tvalues # tvalues beta coefficients
+            save_conf_int['pvalues'] = results.pvalues # signficance of beta coefficients
+            save_conf_int['fvalue'] = np.repeat(results.fvalue, len(save_conf_int)) # for model
+            save_conf_int['f_pvalue'] = np.repeat(results.f_pvalue, len(save_conf_int)) # for model
+            save_conf_int['rsquared'] = np.repeat(results.rsquared, len(save_conf_int)) # for model
+            df_conf_out = pd.concat([df_conf_out, save_conf_int])
+        
+        df_conf_out.to_csv(os.path.join(self.jasp_folder,'{}_{}_{}_OLS_results.csv'.format(self.exp, cond, dv)))
+        
+        print('success: regression_pupil_AQ_blocks')        
+
+
+    def plot_regression_pupil_AQ_blocks(self, ):
+        """By block, plot pupil~AQ regression results.
+        """
+        cond = 'block-frequency'
+        dv = 'pupil_feed_locked_t1'
+        ivs = ['constant', 'social', 'attention', 'communication', 'fantasy', 'detail']
+        ylim = [-0.4, 0.4]
+        
+        df_results = pd.read_csv(os.path.join(self.jasp_folder,'{}_{}_{}_OLS_results.csv'.format(self.exp, cond, dv)))
+        df_results = df_results.loc[:, ~df_results.columns.str.contains('^Unnamed')] # remove all unnamed columns
+                
+        # new figure for every IV
+        fig = plt.figure(figsize=(8,3))
+        counter = 1 # subplot counter
+        
+        for block in [1,2,3,4]:
+            ax = fig.add_subplot(1, 4, counter) # 1 subplot per bin window
+            ax.set_box_aspect(1)
+            
+            this_block = df_results[df_results['block']==block].copy()
+            
+            x = np.arange(len(ivs))
+            y = np.array(this_block['beta'])
+            yerr = np.array(this_block['bse'])
+            # drop constant before plotting
+            x = x[1:]
+            y = y[1:]
+            yerr = yerr[1:]
+            
+            # flag significant betas with green markers
+            sig_array = np.array(this_block['pvalues']<0.05)[1:]
+            marker_size_array = 20*sig_array # size * boolean mask
+            # plot bars and markers separately 
+            ax.errorbar(x, y, yerr=yerr, marker='o', markersize=1, mfc='black', mec='black', ls="None", ecolor='grey', elinewidth=1, capsize=2, barsabove=False)
+            ax.scatter(x, y, s=marker_size_array, marker='*', color='black')
+            
+            # model results
+            fvalue = np.round(np.array(this_block['fvalue'])[0],2)
+            f_pvalue = np.round(np.array(this_block['f_pvalue'])[0], 3)
+            rsquared = np.round(np.array(this_block['rsquared'])[0], 2)
+            
+            # set figure parameters
+            ax.set_title('Block {}'.format(block))
+            ax.set_ylabel('Beta coefficient')
+            ax.set_xlabel('F(5,41) = {}, p = {}, R2 = {}'.format(fvalue, f_pvalue, rsquared))
+            ax.set_xticks(x)
+            ax.set_xticklabels(ivs[1:], rotation=45, ha='right')
+            ax.set_ylim(ylim)
+            
+            counter = counter + 1
+                    
+            plt.tight_layout()
+            fig.savefig(os.path.join(self.figure_folder,'{}_{}_{}_OLS_results.pdf'.format(self.exp, cond, dv)))
+        print('success: plot_regression_pupil_AQ_blocks')
+                
