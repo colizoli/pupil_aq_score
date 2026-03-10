@@ -1,0 +1,51 @@
+﻿item,question,hoekstra_reverse,subscale
+1, [I prefer to do things with others rather than on my own.],0,social
+2, [I prefer to do things the same way over and over again.],1,attention
+3," [If I try to imagine something, I find it very easy to create a picture in my mind.]",0,imagination
+4, [I frequently get so strongly absorbed in one thing that I lose sight of other things.],1,attention
+5, [I often notice small sounds when others do not.],1,detail
+6, [I usually notice car number plates or similar strings of information.],1,detail
+7," [Other people frequently tell me that what Ive said is impolite, even though I think it is polite.]",1,communication
+8," [When Im reading a story, I can easily imagine what the characters might look like.]",0,imagination
+9, [I am fascinated by dates.],1,detail
+10," [In a social group, I can easily keep track of several different peoples conversations.]",0,attention
+11, [I find social situations easy.],0,social
+12, [I tend to notice details that others do not.],1,detail
+13, [I would rather go to a library than a party.],1,social
+14, [I find making up stories easy.],0,imagination
+15, [I find myself drawn more strongly to people than to things.],0,social
+16, [I tend to have very strong interests which I get upset about if I cant pursue.],1,attention
+17, [I enjoy social chit-chat.],0,communication
+18," [When I talk, it isnt always easy for others to get a word in edgeways.]",1,communication
+19, [I am fascinated by numbers.],1,detail
+20," [When Im reading a story, I find it difficult to work out the characters intentions.]",1,imagination
+21, [I dont particularly enjoy reading fiction.],1,imagination
+22, [I find it hard to make new friends.],1,social
+23, [I notice patterns in things all the time.],1,detail
+24, [I would rather go to the theatre than a museum.],0,imagination
+25, [It does not upset me if my daily routine is disturbed.],0,attention
+26, [I frequently find that I dont know how to keep a conversation going.],1,communication
+27, [I find it easy to read between the lines when someone is talking to me.],0,communication
+28," [I usually concentrate more on the whole picture, rather than the small details.]",0,detail
+29, [I am not very good at remembering phone numbers.],0,detail
+30," [I dont usually notice small changes in a situation, or a persons appearance.]",0,detail
+31, [I know how to tell if someone listening to me is getting bored.],0,communication
+32, [I find it easy to do more than one thing at once.],0,attention
+33," [When I talk on the phone, Im not sure when its my turn to speak.]",1,communication
+34, [I enjoy doing things spontaneously.],0,attention
+35, [I am often the last to understand the point of a joke.],1,communication
+36, [I find it easy to work out what someone is thinking or feeling just by looking at their face.],0,social
+37," [If there is an interruption, I can switch back to what I was doing very quickly.]",0,attention
+38, [I am good at social chit-chat.],0,communication
+39, [People often tell me that I keep going on and on about the same thing.],1,communication
+40," [When I was young, I used to enjoy playing games involving pretending with other children.]",0,imagination
+41," [I like to collect information about categories of things (e.g. types of car, types of bird, types of train, types of plant, etc.).]",1,imagination
+42, [I find it difficult to imagine what it would be like to be someone else.],1,imagination
+43, [I like to plan any activities I participate in carefully.],1,attention
+44, [I enjoy social occasions.],0,social
+45, [I find it difficult to work out peoples intentions],1,social
+46, [New situations make me anxious.],1,attention
+47, [I enjoy meeting new people.],0,social
+48, [I am a good diplomat.],0,social
+49, [I am not very good at remembering peoples date of birth.],0,detail
+50, [I find it very easy to play games with children that involve pretending.],0,imagination
