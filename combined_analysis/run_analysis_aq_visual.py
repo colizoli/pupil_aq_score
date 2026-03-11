@@ -75,15 +75,15 @@ aq_scoring = pd.read_csv(os.path.join(home_dir, 'combined_analysis', 'aq_scoring
 if training:  
     oddballTraining = training_higher.higherLevel(
         subjects          = subjects, 
-        experiment_name   = 'task-letter_color_visual_training',
+        experiment_name   = 'task-aq_visual_training',
         project_directory = data_dir
         )
     oddballTraining.create_subjects_dataframe()       # drops missed trials, saves higher level data frame
     oddballTraining.average_conditions()              # group level data frames for all main effects + interaction
     oddballTraining.plot_behav()                      # plots behavior, group level, main effects + interaction
     oddballTraining.calculate_actual_frequencies()    # calculates the actual frequencies of pairs
-    oddballTraining.information_theory_estimates()
-    oddballTraining.plot_information_frequency()
+    oddballTraining.information_theory_estimates()    # run ideal learner model to get probabilities at end of oddball task
+    oddballTraining.plot_information_frequency()       # plot probability and surprise at the end of oddball task for each frequency condition
     
 # -----------------------
 # Event-locked pupil parameters (shared)
@@ -152,7 +152,7 @@ if trial_process:
         trialLevel.save_baselines()                              # saves pre-cue and pre-feedback baselines
         trialLevel.event_related_baseline_correction()           # per event of interest, baseline corrrects evoked responses
         trialLevel.event_related_saccades()                      # marks each sample of the evoked response if a saccade was present, save counts per trial
-        trialLevel.event_related_blinks()                        # marks each sample of the evoked response if a saccade was present, save counts per trial
+        trialLevel.event_related_blinks()                        # marks each sample of the evoked response if a blink was present, save counts per trial
 
 # -----------------------
 # MEAN responses and group level statistics 
@@ -191,7 +191,7 @@ if higher_level:
     # higherLevel.correlation_AQ()                  # correlations between pupil, RT conditions and AQ
     # higherLevel.plot_phasic_pupil_unsigned_pe()   # plots the mean pupil response as a function of the frequency conditions
     # higherLevel.plot_AQ_histogram()               # plot a histogram of the AQ score
-    higherLevel.plot_AQ_covariance()              # plots the correlation matrix of the AQ sub-scores
+    # higherLevel.plot_AQ_covariance()              # plots the correlation matrix of the AQ sub-scores
 
     ''' Regression pupil~AQ by block
     '''
@@ -199,4 +199,22 @@ if higher_level:
     ## higherLevel.correlation_AQ_blocks()               # by block, correlations between pupil and AQ
     # higherLevel.regression_pupil_AQ_blocks()        # by block, multiple regression of AQ components (IVs) onto average pupil response in time window of interest
     # higherLevel.plot_regression_pupil_AQ_blocks()   # by block, plot pupil~AQ regression results
+    
+    ''' Ideal Learner Model
+    '''
+    # higherLevel.information_theory_estimates(flat_prior=False) # run model with uniform prior distribution
+    # higherLevel.average_information_conditions()
+    # higherLevel.plot_information()
+    # higherLevel.pupil_information_correlation_matrix()
+    # higherLevel.dataframe_evoked_pupil_information_betas()
+    # higherLevel.plot_evoked_pupil_information_betas()
+    # higherLevel.dataframe_evoked_correlation_information_betas_AQ()  # compute correlation of AQ onto beta coefficients (surprise & information gain) across pupil time course
+    # higherLevel.plot_evoked_correlation_information_betas_AQ()
+    # higherLevel.phasic_correlation_information_betas_AQ()
+    higherLevel.plot_phasic_correlation_information_betas_AQ()
+    
+    
+    
+    
+    
     

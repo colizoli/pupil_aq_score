@@ -101,7 +101,7 @@ class higherLevel(object):
                     
                     
     def create_subjects_dataframe(self,):
-        """Combine behavior and phasic pupil dataframes of all subjects into a single large dataframe. 
+        """Combine dataframes of all subjects into a single large dataframe. 
         
         Notes
         -----
@@ -112,10 +112,10 @@ class higherLevel(object):
         
         files = []
         for s,subj in enumerate(self.subjects):
-            this_dir = os.path.join(self.project_directory,subj,'beh') # derivatives folder
+            this_dir = os.path.join(self.project_directory, subj) # derivatives folder
             for i in os.listdir(this_dir):
-                if os.path.isfile(os.path.join(this_dir,i)) and self.exp in i:
-                    files.append(os.path.join(this_dir,i))
+                if os.path.isfile(os.path.join(this_dir, i)) and 'task-letter_color_visual_training' in i:
+                    files.append(os.path.join(this_dir, i))
     
         counter = 0    
         for f in files:
@@ -147,7 +147,7 @@ class higherLevel(object):
         Save separate dataframes for the different combinations of factors, in jasp folders for statistical testing.
         Drop missed trials.
         """
-        DF = pd.read_csv(os.path.join(self.dataframe_folder,'{}_subjects.csv'.format(self.exp)))
+        DF = pd.read_csv(os.path.join(self.dataframe_folder, '{}_subjects.csv'.format(self.exp)))
         
         #####################
         # drop missed trials
@@ -156,14 +156,15 @@ class higherLevel(object):
         
         for dv in ['correct','RT']:
             DFOUT = DF.groupby(['subject','oddball'])[dv].mean()
-            DFOUT.to_csv(os.path.join(self.dataframe_folder,'{}_oddball_{}.csv'.format(self.exp,dv))) # For descriptives
+            DFOUT.to_csv(os.path.join(self.dataframe_folder, '{}_oddball_{}.csv'.format(self.exp, dv))) # For descriptives
             # save for RMANOVA format
             DFANOVA =  DFOUT.unstack(['oddball']) 
             print(DFANOVA.columns)
             DFANOVA.columns = DFANOVA.columns.to_flat_index() # flatten column index
-            DFANOVA.to_csv(os.path.join(self.jasp_folder,'{}_oddball_{}_rmanova.csv'.format(self.exp,dv))) # for stats
+            DFANOVA.to_csv(os.path.join(self.jasp_folder, '{}_oddball_{}_rmanova.csv'.format(self.exp, dv))) # for stats
         
         print('success: average_conditions')
+        
         
     def plot_behav(self):
         """Plot the group level means of accuracy and RT per odd-ball condition.

@@ -182,6 +182,74 @@ class higherLevel(object):
         ax.margins(x=0)
     
 
+    def cluster_sig_bar_1samp(self, array, x, yloc, color, ax, threshold=0.05, nrand=5000, cluster_correct=True):
+        """Add permutation-based cluster-correction bar on time series plot.
+        
+        Parameters
+        ----------
+        array : array
+            The data in matrix of format: subject x timepoints
+
+        x : array
+            x-axis of plot
+
+        yloc : int
+            Location on y-axis to draw bar
+
+        color : string
+            Color of bar
+
+        ax : matplotlib.axes._subplots.AxesSubplot
+            The subplot handle to plot in
+
+        threshold : float
+            Alpha value for p-value significance (default 0.05)
+
+        nrand : int 
+            Number of permutations (default 5000)
+
+        cluster_correct : bool 
+            Perform cluster-based multiple comparison correction if True (default True).
+        """
+        if yloc == 1:
+            yloc = 10
+        if yloc == 2:
+            yloc = 20
+        if yloc == 3:
+            yloc = 30
+        if yloc == 4:
+            yloc = 40
+        if yloc == 5:
+            yloc = 50
+
+        if cluster_correct:
+            whatever, clusters, pvals, bla = mne.stats.permutation_cluster_1samp_test(array, n_permutations=nrand, n_jobs=10)
+            for j, cl in enumerate(clusters):
+                if len(cl) == 0:
+                    pass
+                else:
+                    if pvals[j] < threshold:
+                        for c in cl:
+                            sig_bool_indices = np.arange(len(x))[c]
+                            xx = np.array(x[sig_bool_indices])
+                            try:
+                                xx[0] = xx[0] - (np.diff(x)[0] / 2.0)
+                                xx[1] = xx[1] + (np.diff(x)[0] / 2.0)
+                            except:
+                                xx = np.array([xx - (np.diff(x)[0] / 2.0), xx + (np.diff(x)[0] / 2.0),]).ravel()
+                            ax.plot(xx, np.ones(len(xx)) * ((ax.get_ylim()[1] - ax.get_ylim()[0]) / yloc)+ax.get_ylim()[0], color, alpha=1, linewidth=2.5)
+        else:
+            p = np.zeros(array.shape[1])
+            for i in range(array.shape[1]):
+                p[i] = sp.stats.ttest_rel(array[:,i], np.zeros(array.shape[0]))[1]
+            sig_indices = np.array(p < 0.05, dtype=int)
+            sig_indices[0] = 0
+            sig_indices[-1] = 0
+            s_bar = zip(np.where(np.diff(sig_indices)==1)[0]+1, np.where(np.diff(sig_indices)==-1)[0])
+            for sig in s_bar:
+                ax.hlines(((ax.get_ylim()[1] - ax.get_ylim()[0]) / yloc)+ax.get_ylim()[0], x[int(sig[0])]-(np.diff(x)[0] / 2.0), x[int(sig[1])]+(np.diff(x)[0] / 2.0), color=color, alpha=1, linewidth=2.5)
+    
+
     def timeseries_fwer_correction(self,  xind, color, ax, pvals, alpha, yloc=5, method='fdr_bh'):
         """Add Family-Wise Error Rate correction bar on time series plot.
         
@@ -758,7 +826,7 @@ class higherLevel(object):
         
         iv = 'aq_score'
     
-        colors = ['black', 'red', 'purple', 'orange'] 
+        colors = ['black', 'red', 'blue', 'orange'] 
         alphas = [1]
         labels = ['All Trials' , 'Error-Correct', 'Low-High%', 'Accuracy*Frequency']
         
@@ -1456,4 +1524,843 @@ class higherLevel(object):
                 pass
         fig.savefig(os.path.join(self.figure_folder,'{}_{}_{}_OLS_results.pdf'.format(self.exp, cond, dv)))
         print('success: plot_regression_pupil_AQ_blocks')
+        
+
+    def idt_model(self, df, df_data_column, elements, priors, flat_prior=False):
+        """Process Ideal Learner Model.
+        
+        Parameters
+        ----------
+        df : pandas dataframe
+            The dataframe to apply the Ideal Learner Model to.
+        
+        df_data_column : str
+            The name of the column that refers to the cue-target pairs for all trials in the experiment.
+        
+        elements : list
+            The list of unique indentifiers for the cue-target pairs.
+        
+        priors : list
+            The list of priors as probabilities.
+        
+        Returns
+        -------
+        [model_e, model_P, model_p, model_I, model_i, model_H, model_CH, model_D]: list
+            A list containing all model parameters (see notes).
+            
+        Notes
+        -----
+        Ideal Learner Model adapted from Poli, Mars, & Hunnius (2020).
+        See also: https://github.com/FrancescPoli/eye_processing/blob/master/ITDmodel.m
+        
+        Priors are generated from the probabilities of the letter-color pair in the odd-ball task.
+        
+        Model Output Notes:
+        model_e = trial sequence
+        model_P = probabilities of all elements at each trial
+        model_p = probability of current element at current trial
+        model_I = surprise of all elements at each trial (i.e., complexity)
+        model_i = surprise of current element at current trial
+        model_H = entropy at current trial
+        model_CH = cross-entropy at current trial
+        model_D = KL-divergence at current trial
+        """
+        
+        data = np.array(df[df_data_column])
+    
+        # initialize output variables for current subject
+        model_e = [] # trial sequence
+        model_P = [] # probabilities of all elements
+        model_p = [] # probability of current element 
+        model_I = [] # surprise of all elements 
+        model_i = [] # surprise of current element 
+        model_H = [] # entropy at current trial
+        model_CH = [] # cross-entropy at current trial
+        model_D = []  # KL-divergence at current trial
+    
+        # loop trials
+        for t in np.arange(df.shape[0]):
+            vector = data[:t+1] #  trial number starts at 0, all the targets that have been seen so far
+            
+            model_e.append(vector[-1])  # element in current trial = last element in the vector
+            
+            # print(vector)
+            if t < 1: # if it's the first trial, our expectations are based only on the prior (values)
+                
+                if not flat_prior:
+                    # PRIORS BASED ON ODDBALL TASK
+                    alpha1 = priors*len(elements) # np.sum(alpha) == len(elements), priors from odd-ball task
+                    p1 = priors # priors based on odd-ball task, np.sum(priors) should equal 1
+                    p = p1
+                else:
+                    # UNIFORM PRIOR DISTRIBUTION
+                    alpha1 = np.ones(len(elements)) # np.sum(alpha) == len(elements), flat prior
+                    p1 = alpha1 / len(elements) # probablity, i.e., np.sum(p1) == 1
+                    p = p1
+            
+            # at every trial, we compute surprise based on the probability
+            model_P.append(p)           # probability (all elements)
+            model_p.append(p[vector[-1]]) # probability of current element
+            # Surprise is defined by the negative log of the probability of the current trial given the previous trials.
+            I = -np.log2(p)     # complexity of every event (each cue_target_pair is a potential event)
+            i = I[vector[-1]]   # surprise of the current event (last element in vector)
+            model_I.append(I)
+            model_i.append(i)
+            
+            # EVERYTHING AFTER HERE IS CALCULATED INCLUDING CURRENT EVENT
+            # Updated estimated probabilities (posterior)
+            p = []
+            for k in elements:
+                # +1 because in the prior there is one element of the same type; +len(alpha) because in the prior there are #alpha elements
+                # The influence of the prior should be sampled by a distribution or
+                # set to a certain value based on Kidd et al. (2012, 2014)
+                p.append((np.sum(vector == k) + alpha1[k]) / (len(vector) + len(alpha1)))       
+            
+            H = -np.sum(p * np.log2(p)) # entropy (note that np.log2(1/p) is equivalent to multiplying the whole sum by -1)
+            model_H.append(H)   # entropy
+            
+            # once we have the updated probabilities, we can compute KL Divergence, Entropy and Cross-Entropy
+            prevtrial = t-1
+            if prevtrial < 0: # first trial
+                D = np.sum(p * (np.log2(p / np.array(p1)))) # KL divergence, after vs. before, same direction as Poli et al. 2020
+            else:
+                D = np.sum(p * (np.log2(p / np.array(model_P[prevtrial])))) # KL divergence, after vs. before, same direction as Poli et al. 2020
+            
+            CH = H + D # Cross-entropy
+    
+            model_CH.append(CH) # cross-entropy
+            model_D.append(D)   # KL divergence
+        
+        return [model_e, model_P, model_p, model_I, model_i, model_H, model_CH, model_D]
+        
+        
+    def information_theory_estimates(self, flat_prior=True):
+        """Run subject loop on Ideal Learner Model and save model estimates.
+        
+        Parameters
+        ----------
+        flat_prior : boolean
+            Use a uniform prior (True) or input priors (False); default True
+        
+        Notes
+        -----
+        Ideal Learner Model adapted from Poli, Mars, & Hunnius (2020).
+        See also: https://github.com/FrancescPoli/eye_processing/blob/master/ITDmodel.m
+        
+        Model estimates that are saved in subject's dataframe:
+        model_i = surprise of current element at current trial
+        model_H = entropy at current trial
+        model_D = KL-divergence at current trial
+        """
+        
+        fn_in = os.path.join(self.dataframe_folder,'{}_subjects.csv'.format(self.exp))
+        
+        if flat_prior:
+            this_priors = []
+        else:
+            print('Need to load prior dataframe!')
+            
+        df_in = pd.read_csv(fn_in, float_precision='%.16f')
+        df_in = df_in.loc[:, ~df_in.columns.str.contains('^Unnamed')]
+        # sort by subjects then trial_counter in ascending order
+        df_in.sort_values(by=['subject', 'trial_num'], ascending=True, inplace=True)
+        
+        df_out = pd.DataFrame()
+        df_prob_out = pd.DataFrame() # last probabilities all elements saved
+        
+        elements = np.unique(df_in['touch_pair'])
+        
+        # loop subjects
+        for s,subj in enumerate(self.subjects):
+            
+            this_subj = int(''.join(filter(str.isdigit, subj))) # get number of subject only
+            
+            if not flat_prior:
+                # get current subjects data only
+                this_priors = priors[str(this_subj)] # priors for current subject
+            this_df = df_in[df_in['subject']==this_subj].copy()
+            
+            # the input to the model is the trial sequence = the order of letter-color pair for each participant
+            [model_e, model_P, model_p, model_I, model_i, model_H, model_CH, model_D] = self.idt_model(this_df, 'touch_pair', elements, this_priors, flat_prior)
+            
+            # add to subject dataframe
+            this_df['model_p'] = np.array(model_p)
+            this_df['model_i'] = np.array(model_i)
+            this_df['model_H'] = np.array(model_H)
+            this_df['model_D'] = np.array(model_D)
+            df_out = pd.concat([df_out, this_df])    # add current subject df to larger df
+            
+            df_prob_out['{}'.format(this_subj)] = np.array(model_P[-1])
+            print(subj)
+        
+        # save whole DF
+        df_out.to_csv(fn_in, float_format='%.16f') # overwrite subjects dataframe
+        print('success: information_theory_estimates')
+        
+    
+    def average_information_conditions(self, ):
+        """Average the model parameters per subject per condition of interest. 
+
+        Notes
+        -----
+        Save separate dataframes for the different combinations of factors in trial bin folder for plotting and jasp folders for statistical testing.
+        'frequency' argument determines how the trials were split
+        """     
+        DF = pd.read_csv(os.path.join(self.dataframe_folder,'{}_subjects.csv'.format(self.exp)), float_precision='%.16f')
+        DF = DF.loc[:, ~DF.columns.str.contains('^Unnamed')] # drop all unnamed columns
+        DF.sort_values(by=['subject','trial_num'],inplace=True)
+        DF.reset_index()
+        
+        ############################
+        # drop outliers and missing trials
+        DF = DF[DF['drop_trial']==0]
+        ############################
+        
+        #interaction accuracy and frequency
+        for pupil_dv in ['model_i', 'model_H', 'model_D']: #interaction accuracy and frequency
+            
+            '''
+            ######## CORRECT x FREQUENCY ########
+            '''
+            # MEANS subject x bin x tone x congruent
+            DFOUT = DF.groupby(['subject', 'correct', 'frequency'])[pupil_dv].mean()
+            DFOUT.to_csv(os.path.join(self.trial_bin_folder,'{}_correct-frequency_{}.csv'.format(self.exp,pupil_dv)), float_format='%.16f') # FOR PLOTTING
+
+            # save for RMANOVA format
+            DFANOVA =  DFOUT.unstack(['frequency', 'correct',]) 
+            print(DFANOVA.columns)
+            DFANOVA.columns = DFANOVA.columns.to_flat_index() # flatten column index
+            DFANOVA.to_csv(os.path.join(self.jasp_folder,'{}_correct-frequency_{}_rmanova.csv'.format(self.exp,pupil_dv)), float_format='%.16f') # for stats
+            '''
+            ######## CORRECT ########
+            '''
+            # MEANS subject x bin x tone x congruent
+            DFOUT = DF.groupby(['subject', 'correct'])[pupil_dv].mean()
+            DFOUT.to_csv(os.path.join(self.trial_bin_folder,'{}_correct_{}.csv'.format(self.exp,pupil_dv)), float_format='%.16f') # FOR PLOTTING
+
+            # save for RMANOVA format
+            DFANOVA =  DFOUT.unstack(['correct',]) 
+            print(DFANOVA.columns)
+            DFANOVA.columns = DFANOVA.columns.to_flat_index() # flatten column index
+            DFANOVA.to_csv(os.path.join(self.jasp_folder,'{}_correct_{}_rmanova.csv'.format(self.exp,pupil_dv)), float_format='%.16f') # for stats
+        
+        '''
+        ######## FREQUENCY ########
+        '''
+        for pupil_dv in ['model_i', 'model_H', 'model_D']: # mean accuracy
+            DFOUT = DF.groupby(['subject','frequency'])[pupil_dv].mean()
+            DFOUT.to_csv(os.path.join(self.trial_bin_folder,'{}_frequency_{}.csv'.format(self.exp,pupil_dv)), float_format='%.16f') # For descriptives
+            # save for RMANOVA format
+            DFANOVA =  DFOUT.unstack(['frequency']) 
+            print(DFANOVA.columns)
+            DFANOVA.columns = DFANOVA.columns.to_flat_index() # flatten column index
+            DFANOVA.to_csv(os.path.join(self.jasp_folder,'{}_frequency_{}_rmanova.csv'.format(self.exp,pupil_dv)), float_format='%.16f') # for stats
+        print('success: average_information_conditions')
+
+
+    def plot_information(self, ):
+        """Plot the model parameters across trials and average over subjects
+        Then, plot the model parameters by frequency
+
+        Notes
+        -----
+        1 figure, GROUP LEVEL DATA
+        x-axis is trials or frequency conditions.
+        Figure output as PDF in figure folder.
+        """
+        dvs = ['model_D', 'model_i','model_H']
+        ylabels = ['KL divergence', 'Surprise', 'Entropy', ]
+        xlabel = 'Trials'
+        colors = [ 'purple', 'teal', 'orange',]    
+        
+        fig = plt.figure(figsize=(4,4))
+        
+        subplot_counter = 1
+        # PLOT ACROSS TRIALS
+        for dvi, pupil_dv in enumerate(dvs):
+
+            ax = fig.add_subplot(3, 3, subplot_counter) # 1 subplot per bin windo
+            
+            DFIN = pd.read_csv(os.path.join(self.dataframe_folder,'{}_subjects.csv'.format(self.exp)), float_precision='%.16f')
+            DFIN = DFIN.loc[:, ~DFIN.columns.str.contains('^Unnamed')] # drop all unnamed columns
+                        
+            subject_array = np.zeros((len(self.subjects), np.max(DFIN['trial_num'])))
+        
+            for s, subj in enumerate(self.subjects):
+                this_subj = int(''.join(filter(str.isdigit, subj)))
+                this_df = DFIN[DFIN['subject']==this_subj].copy()        
+                subject_array[s,:] = np.ravel(this_df[[pupil_dv]])
+                            
+            self.tsplot(ax, subject_array, color=colors[dvi], label=ylabels[dvi])
+    
+            # set figure parameters
+            ax.set_xlim([0, np.max(DFIN['trial_num'])+1])
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel(ylabels[dvi])
+            # ax.legend()
+            subplot_counter += 1
+        
+        # PLOT ACROSS FREQUENCY CONDITIONS
+        factor = 'frequency'
+        xlabel = 'Touch-pair frequency'
+        xticklabels = ['Low','High'] # be careful and check order!
+        bar_width = 0.7
+        xind = np.arange(len(xticklabels))
+        
+        for dvi, pupil_dv in enumerate(dvs):
+            
+            ax = fig.add_subplot(3, 3, subplot_counter) # 1 subplot per bin window
+
+            DFIN = pd.read_csv(os.path.join(self.trial_bin_folder,'{}_{}_{}.csv'.format(self.exp,'frequency',pupil_dv)), float_precision='%.16f')
+            DFIN = DFIN.loc[:, ~DFIN.columns.str.contains('^Unnamed')] # drop all unnamed columns
+            
+            # Group average 
+            GROUP = pd.DataFrame(DFIN.groupby([factor])[pupil_dv].agg(['mean','std']).reset_index())
+            GROUP['sem'] = np.true_divide(GROUP['std'],np.sqrt(len(self.subjects)))
+            print(GROUP)
+            
+            # ax.axhline(0, lw=1, alpha=1, color = 'k') # Add horizontal line at t=0
+                       
+            # plot bar graph
+            # make sure to do low then high, flip x index as compared with GROUP index
+            ax.bar(xind[0],np.array(GROUP['mean'][1]), width=bar_width, yerr=np.array(GROUP['sem'][1]), capsize=3, color=colors[dvi], edgecolor='black', ecolor='black')
+            ax.bar(xind[1],np.array(GROUP['mean'][0]), width=bar_width, yerr=np.array(GROUP['sem'][0]), capsize=3, color=colors[dvi], edgecolor='black', ecolor='black')
+                
+            # individual points, repeated measures connected with lines
+            # DFIN = DFIN.groupby(['subject',factor])[pupil_dv].mean() # hack for unstacking to work
+            # DFIN = DFIN.unstack(factor)
+            # for s in np.array(DFIN):
+            #     ax.plot(xind, s, linestyle='-', marker='o', markersize=3, fillstyle='full', color='black', alpha=.1) # marker, line, black
+                
+            # set figure parameters
+            # ax.set_title(ylabels[dvi]) # repeat for consistent formatting
+            ax.set_ylabel(ylabels[dvi])
+            ax.set_xlabel(xlabel)
+            ax.set_xticks(xind)
+            ax.set_xticklabels(xticklabels)
+            # if pupil_dv == 'model_D':
+            #     ax.set_ylim([0.004, 0.007])
+            # if pupil_dv == 'model_i':
+            #     ax.set_ylim([4.9, 5.2])
+            # if pupil_dv == 'model_H':
+            #     ax.set_ylim([4.5, 4.75])
+            # if pupil_dv == 'model_D':
+            #     ax.set_ylim([0.004, 0.00475])
+            # if pupil_dv == 'model_i':
+            #     ax.set_ylim([4.95, 5.05])
+            # if pupil_dv == 'model_H':
+            #     ax.set_ylim([4.85, 4.9])
+            subplot_counter += 1
+            
+        # whole figure format
+        sns.despine(offset=10, trim=True)
+        plt.tight_layout()
+        fig.savefig(os.path.join(self.figure_folder,'{}_information.pdf'.format(self.exp)))
+        print('success: plot_information')
+        
+        
+    def pupil_information_correlation_matrix(self,):
+        """Correlate information variables to evaluate multicollinearity.
+        
+        Notes
+        -----
+        Model estimates that are correlated per subject the tested at group level:
+        model_i = surprise of current element at current trial
+        model_H = entropy at current trial
+        model_D = KL-divergence at current trial
+        
+        See figure folder for plot and output of t-test.
+        """
+        
+        ivs = ['model_i', 'model_H', 'model_D',]
+        labels = ['i' , 'H', 'KL',]
+
+        DF = pd.read_csv(os.path.join(self.dataframe_folder,'{}_subjects.csv'.format(self.exp)), float_precision='%.16f')
+
+        #### DROP OMISSIONS HERE ####
+        DF = DF[DF['drop_trial'] == 0] # drop outliers based on RT
+        #############################
+        
+        corr_out = []
+
+        # loop subjects
+        for s, subj in enumerate(self.subjects):
+            
+            this_subj = int(''.join(filter(str.isdigit, subj))) 
+            # get current subject's data only
+            this_df = DF[DF['subject']==this_subj].copy(deep=False)
+                            
+            x = this_df[ivs] # select information variable columns
+            x_corr = x.corr() # correlation matrix
+            
+            
+            corr_out.append(x_corr) # beta KLdivergence (target-prediction)
+        
+        corr_subjects = np.array(corr_out)
+        corr_mean = np.mean(corr_subjects, axis=0)
+        corr_std = np.std(corr_subjects, axis=0)
+        
+        t, pvals = sp.stats.ttest_1samp(corr_subjects, 0, axis=0)
+        
+        f = open(os.path.join(self.figure_folder, '{}_pupil_information_correlation_matrix.txt'.format(self.exp)), "w")
+        f.write('corr_mean')
+        f.write('\n')
+        f.write('{}'.format(corr_mean))
+        f.write('\n')
+        f.write('\n')
+        f.write('tvals')
+        f.write('\n')
+        f.write('{}'.format(t))
+        f.write('\n')
+        f.write('\n')
+        f.write('pvals')
+        f.write('\n')
+        f.write('{}'.format(pvals))
+        f.close
+        
+        ### PLOT ###
+        fig = plt.figure(figsize=(8,8))
+        ax = fig.add_subplot(121)
+        cbar_ax = fig.add_subplot(122)
+        
+        # mask for significance
+        mask_pvals = pvals < 0.05
+        mask_pvals = ~mask_pvals # True means mask this cell
+        
+        # plot only lower triangle
+        mask = np.triu(np.ones_like(corr_mean))
+        mask = mask + mask_pvals # only show sigificant correlations in heatmap
+        
+        # ax = sns.heatmap(corr_mean, vmin=-1, vmax=1, mask=mask, cmap='bwr', cbar_ax=cbar_ax, xticklabels=labels, yticklabels=labels, square=True, annot=True, ax=ax)
+        ax = sns.heatmap(corr_mean, vmin=-1, vmax=1, cmap='bwr', cbar_ax=cbar_ax, xticklabels=labels, yticklabels=labels, square=True, annot=True, ax=ax)
+        
+        # whole figure format
+        sns.despine(offset=10, trim=True)
+        plt.tight_layout()
+        fig.savefig(os.path.join(self.figure_folder,'{}_pupil_information_correlation_matrix.pdf'.format(self.exp)))
+                        
+        print('success: pupil_information_correlation_matrix')
+        
+
+    def dataframe_evoked_pupil_information_betas(self):
+        """Multiple regression of theoretic variables onto pupil with other variables removed across timecourse.
+
+        Notes
+        -----
+        Drop omission trials (in subject loop).
+        Output in dataframe folder.
+        """
+        DF = pd.read_csv(os.path.join(self.dataframe_folder, '{}_subjects.csv'.format(self.exp)), float_precision='%.16f')
+        DF = DF.loc[:, ~DF.columns.str.contains('^Unnamed')] # remove all unnamed columns
+
+        ivs = ['model_i', 'model_D', 'pupil_baseline_feed_locked', 'RT']
+
+        pd.set_option('display.float_format', lambda x: '%.16f' % x) # suppress scientific notation in pandas
+
+        for t,time_locked in enumerate(self.time_locked):
+
+            for cond in ['all_trials']:
+            
+                # save betas per timepoint
+                df_out_c = pd.DataFrame() # timepoints x subjects
+                df_out_i = pd.DataFrame() # timepoints x subjects
+                df_out_D = pd.DataFrame() # timepoints x subjects
+                df_out_b = pd.DataFrame() # timepoints x subjects
+                df_out_r = pd.DataFrame() # timepoints x subjects
+                
+                # loop subjects
+                for s, subj in enumerate(self.subjects):
+
+                    this_subj = int(''.join(filter(str.isdigit, subj)))
+                    # get current subject's data only
+
+                    SBEHAV = DF[DF['subject']==this_subj].reset_index()
+                    SPUPIL = pd.DataFrame(pd.read_csv(os.path.join(self.project_directory, subj, '{}_{}_{}_evoked_basecorr.csv'.format(subj, self.exp, time_locked)), float_precision='%.16f'))
+                    
+                    SPUPIL = SPUPIL.loc[:, ~SPUPIL.columns.str.contains('^Unnamed')] # remove all unnamed columns
+
+                    # merge behavioral and evoked dataframes so we can group by conditions
+                    SBEHAV
+                    SDATA = pd.concat([SBEHAV,SPUPIL],axis=1)
+
+                    #### DROP OMISSIONS HERE ####
+                    SDATA = SDATA[SDATA['drop_trial'] == 0] # drop outliers based on RT
+                    #############################
+
+                    evoked_cols = np.char.mod('%d', np.arange(SPUPIL.shape[-1])) # get columns of pupil sample points only
+                    
+                    # save betas
+                    save_timepoint_c = [] # constant
+                    save_timepoint_i = [] # surprise
+                    save_timepoint_D = [] # information gain
+                    save_timepoint_b = [] # baselines
+                    save_timepoint_r = [] # RTs
+                    
+                    # get IVs
+                    X = SDATA[ivs].copy()  # true copy
+                    
+                    # Z-score IVs to account for large differences in scaling
+                    X = X.apply(stats.zscore)
+
+                    # loop timepoints, regress
+                    for col in evoked_cols:
+                        Y = SDATA[col] # pupil dv
+                        X = sm.add_constant(X) # ivs
+
+                        # Fit OLS model
+                        model = sm.OLS(Y, X).fit()
+                                                
+                        # save betas for this timepoint
+                        save_timepoint_c.append(model.params['const'])
+                        save_timepoint_i.append(model.params['model_i'])
+                        save_timepoint_D.append(model.params['model_D'])
+                        save_timepoint_b.append(model.params['pupil_baseline_feed_locked'])
+                        save_timepoint_r.append(model.params['RT'])
+                        
+                    # add column for each subject with timepoints as rows
+                    df_out_c[subj] = np.array(save_timepoint_c)
+                    df_out_c[subj] = df_out_c[subj].apply(lambda x: '%.16f' % x) # remove scientific notation from df
+                    # add column for each subject with timepoints as rows
+                    df_out_i[subj] = np.array(save_timepoint_i)
+                    df_out_i[subj] = df_out_i[subj].apply(lambda x: '%.16f' % x) # remove scientific notation from df
+                    # add column for each subject with timepoints as rows
+                    df_out_D[subj] = np.array(save_timepoint_D)
+                    df_out_D[subj] = df_out_D[subj].apply(lambda x: '%.16f' % x) # remove scientific notation from df
+                    # # add column for each subject with timepoints as rows
+                    df_out_b[subj] = np.array(save_timepoint_b)
+                    df_out_b[subj] = df_out_b[subj].apply(lambda x: '%.16f' % x) # remove scientific notation from df
+                    # add column for each subject with timepoints as rows
+                    df_out_r[subj] = np.array(save_timepoint_r)
+                    df_out_r[subj] = df_out_r[subj].apply(lambda x: '%.16f' % x) # remove scientific notation from df
+
+                # save output file
+                df_out_c.to_csv(os.path.join(self.dataframe_folder, '{}_{}_evoked_regression_{}_constant.csv'.format(self.exp, time_locked, cond)), float_format='%.16f')
+                df_out_i.to_csv(os.path.join(self.dataframe_folder, '{}_{}_evoked_regression_{}_model_i.csv'.format(self.exp, time_locked, cond)), float_format='%.16f')
+                df_out_D.to_csv(os.path.join(self.dataframe_folder, '{}_{}_evoked_regression_{}_model_D.csv'.format(self.exp, time_locked, cond)), float_format='%.16f')
+                df_out_b.to_csv(os.path.join(self.dataframe_folder, '{}_{}_evoked_regression_{}_pupil_baseline_feed_locked.csv'.format(self.exp, time_locked, cond)), float_format='%.16f')
+                df_out_r.to_csv(os.path.join(self.dataframe_folder, '{}_{}_evoked_regression_{}_RT.csv'.format(self.exp, time_locked, cond)), float_format='%.16f')
+        print('success: dataframe_evoked_pupil_information_betas')
+        
+    
+    def plot_evoked_pupil_information_betas(self):
+        """Plot beta coefficients from regression between pupil and information variables across timecourse.
+        
+        Notes
+        -----
+        Always feed_locked pupil response.
+        """
+        
+        sample_rate = self.sample_rate 
+        
+        ylim_feed = [-0.2, 0.2]
+        tick_spacer = 0.1
+        
+        iv = 'aq_score'
+    
+        # colors = ['teal', 'purple', 'blue', 'red']
+        # alphas = [1]
+        # labels = ['model_i' , 'model_D', 'pupil_baseline_feed_locked', 'RT']
+        colors = ['teal', 'purple', ] 
+        alphas = [1]
+        labels = ['model_i' , 'model_D', ]
+        
+        # colors = ['black', ]
+        # alphas = [1]
+        # labels = ['constant' ,]
+        
+        time_locked = 'feed_locked'
+        t = 0
+        
+        for i,cond in enumerate(['all_trials']):
+            
+            #######################
+            # FEEDBACK PLOT R FOR EACH PUPIl COND
+            #######################
+            fig = plt.figure(figsize=(8,5))
+            ax = fig.add_subplot(111)
+            factor = 'subject'
+            kernel = int((self.pupil_step_lim[t][1]-self.pupil_step_lim[t][0])*sample_rate) # length of evoked responses
+            # determine time points x-axis given sample rate
+            event_onset = int(abs(self.pupil_step_lim[t][0]*sample_rate))
+            end_sample = int((self.pupil_step_lim[t][1] - self.pupil_step_lim[t][0])*sample_rate)
+            mid_point = int(np.true_divide(end_sample-event_onset,2) + event_onset)
+                        
+            # Compute means, sems across group
+            for i,model_iv in enumerate(labels): # conservative analysis, no correct-frequency condition
+                CORR = pd.read_csv(os.path.join(self.dataframe_folder, '{}_{}_evoked_regression_{}_{}.csv'.format(self.exp, time_locked, cond, model_iv)), float_precision='high')
+                CORR = CORR.loc[:, ~CORR.columns.str.contains('^Unnamed')] # remove all unnamed columns
+                
+                TS = np.array(CORR.T)   
+                
+                self.tsplot(ax, TS, alpha_fill=0.2, alpha_line=1, color=colors[i], label=model_iv)
+            
+                # stats        
+                self.cluster_sig_bar_1samp(array=TS, x=pd.Series(range(TS.shape[-1])), yloc=1+i, color=colors[i], ax=ax, threshold=0.05, nrand=5000, cluster_correct=True)           
+            
+            # set figure parameters
+            ax.axvline(int(abs(self.pupil_step_lim[t][0]*sample_rate)), lw=1, alpha=1, color = 'k') # Add vertical line at t=0
+            ax.axhline(0, lw=1, alpha=1, color = 'k') # Add horizontal line at t=0
+        
+            # Shade all time windows of interest in grey, will be different for events
+            for twi in self.pupil_time_of_interest[t]:
+                tw_begin = int(event_onset + (twi[0]*sample_rate))
+                tw_end = int(event_onset + (twi[1]*sample_rate))
+                ax.axvspan(tw_begin, tw_end, facecolor='k', alpha=0.1)
+            
+            xticks = [event_onset, event_onset+(0.5*sample_rate*1), event_onset+(0.5*sample_rate*2), event_onset+(0.5*sample_rate*3), event_onset+(0.5*sample_rate*4), event_onset+(0.5*sample_rate*5), event_onset+(0.5*sample_rate*6), event_onset+(0.5*sample_rate*7)]
+            ax.set_xticks(xticks)
+            ax.set_xticklabels([0, self.pupil_step_lim[t][1]-(.5*6), self.pupil_step_lim[t][1]-(.5*5), self.pupil_step_lim[t][1]-(.5*4), self.pupil_step_lim[t][1]-(.5*3), self.pupil_step_lim[t][1]-(.5*2),  self.pupil_step_lim[t][1]-(.5*1), self.pupil_step_lim[t][1]])
+
+            # ax.set_ylim(ylim_feed)
+            # ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(tick_spacer))
+            ax.set_xlabel('Time from feedback (s)')
+            ax.set_ylabel('Beta coefficient')
+            ax.set_title('{} {}'.format(time_locked, cond))
+            ax.legend()
+        
+            # whole figure format
+            sns.despine(offset=10, trim=True)
+            # plt.tight_layout()
+            fig.savefig(os.path.join(self.figure_folder,'{}_{}_evoked_betas_{}.pdf'.format(self.exp, time_locked, cond)))
+        print('success: plot_evoked_pupil_information_betas')
+        
+        
+    def dataframe_evoked_correlation_information_betas_AQ(self, ):
+        """Timeseries individual differences (Spearman rank) correlation between beta coefficients (surprise and information gain) and AQ score for:
+        all trials
+
+        Notes
+        -----
+        Omissions dropped in dataframe_evoked_regression()
+        Output correlation coefficients per time point in dataframe folder.
+        """
+        
+        AQ = pd.read_csv(os.path.join(self.dataframe_folder, '{}_aq_scores_coded.csv'.format(self.exp)), float_precision='high')       
+        AQ.sort_values(by='subject', ascending=True, inplace=True) # sort by participant number
+        iv = 'aq_score'
+        aq_scores = np.array(AQ[iv])
+                
+        pd.set_option('display.float_format', lambda x: '%.16f' % x) # suppress scientific notation in pandas
+        
+        
+        for t,time_locked in enumerate(self.time_locked):
+            
+            df_out = pd.DataFrame() # timepoints x participants
+            
+            for cond in ['all_trials']:
+                
+                for model_iv in ['model_i', 'model_D']:
+                                        
+                    DF = pd.read_csv(os.path.join(self.dataframe_folder, '{}_{}_evoked_regression_{}_{}.csv'.format(self.exp, time_locked, cond, model_iv)), float_precision='high')
+                    DF = DF.loc[:, ~DF.columns.str.contains('^Unnamed')] # remove all unnamed columns
+                    DF = DF[sorted(DF.columns)] # make sure to sort by participant number 
+                    
+                    # loop timepoints, correlation
+                    save_timepoint_r = []
+                    save_timepoint_p = []
+                    
+                    for timepoint in np.arange(DF.shape[0]):
+                        
+                        y = DF.iloc[timepoint,:] # current timepoint, all participants
+                        x = aq_scores # iv
+                    
+                        r, pval = sp.stats.spearmanr(np.array(x), np.array(y))
+
+                        save_timepoint_r.append(self.fisher_transform(r))
+                        save_timepoint_p.append(pval)
+                    
+                    # add column for each subject with timepoints as rows
+                    df_out['{}_{}_r'.format(cond, model_iv)] = np.array(save_timepoint_r)
+                    df_out['{}_{}_pval'.format(cond, model_iv)] = np.array(save_timepoint_p)
+                    # remove scientific notation from df
+                    df_out['{}_{}_r'.format(cond, model_iv)] = df_out['{}_{}_r'.format(cond, model_iv)].apply(lambda x: '%.16f' % x) 
+                    df_out['{}_{}_pval'.format(cond, model_iv)] = df_out['{}_{}_pval'.format(cond, model_iv)].apply(lambda x: '%.16f' % x)
+                
+            # save output file
+            df_out.to_csv(os.path.join(self.dataframe_folder,'{}_{}_evoked_correlation_information_betas_AQ.csv'.format(self.exp, time_locked)), float_format='%.16f')
+        print('success: dataframe_evoked_correlation_information_betas_AQ')
+        
+
+    def plot_evoked_correlation_information_betas_AQ(self):
+        """Plot correlation between pupil beta coefficients (surprise and information gain) and AQ scores.
+        
+        Notes
+        -----
+        Always feed_locked pupil response.
+        """
+        
+        sample_rate = self.sample_rate 
+        
+        ylim_feed = [-0.2, 0.2]
+        tick_spacer = 0.1
+        
+        iv = 'aq_score'
+    
+        colors = ['teal', 'purple'] 
+        alphas = [1]
+        labels = ['model_i' , 'model_D']
+        
+        time_locked = 'feed_locked'
+        t = 0
+        CORR = pd.read_csv(os.path.join(self.dataframe_folder,'{}_{}_evoked_correlation_information_betas_AQ.csv'.format(self.exp, time_locked)), float_precision='high')
+        
+        for i,cond in enumerate(['all_trials']):
+        
+            #######################
+            # FEEDBACK PLOT R FOR EACH PUPIl COND
+            #######################
+            fig = plt.figure(figsize=(8,5))
+            ax = fig.add_subplot(111)
+            factor = 'subject'
+            kernel = int((self.pupil_step_lim[t][1]-self.pupil_step_lim[t][0])*sample_rate) # length of evoked responses
+            # determine time points x-axis given sample rate
+            event_onset = int(abs(self.pupil_step_lim[t][0]*sample_rate))
+            end_sample = int((self.pupil_step_lim[t][1] - self.pupil_step_lim[t][0])*sample_rate)
+            mid_point = int(np.true_divide(end_sample-event_onset,2) + event_onset)
+                        
+            # Compute means, sems across group
+            for i,model_iv in enumerate(labels): # conservative analysis, no correct-frequency condition
+                TS = np.array(CORR['{}_{}_r'.format(cond, model_iv)])
+                pvals = np.array(CORR['{}_{}_pval'.format(cond, model_iv)])
+                    
+                ax.plot(pd.Series(range(TS.shape[-1])), TS, color=colors[i], label=model_iv)
+            
+                # stats        
+                self.timeseries_fwer_correction(pvals=pvals, xind=pd.Series(range(pvals.shape[-1])), alpha=0.05, color=colors[i], yloc=i, ax=ax)
+            
+            # set figure parameters
+            ax.axvline(int(abs(self.pupil_step_lim[t][0]*sample_rate)), lw=1, alpha=1, color = 'k') # Add vertical line at t=0
+            ax.axhline(0, lw=1, alpha=1, color = 'k') # Add horizontal line at t=0
+        
+            # Shade all time windows of interest in grey, will be different for events
+            for twi in self.pupil_time_of_interest[t]:
+                tw_begin = int(event_onset + (twi[0]*sample_rate))
+                tw_end = int(event_onset + (twi[1]*sample_rate))
+                ax.axvspan(tw_begin, tw_end, facecolor='k', alpha=0.1)
+            
+            xticks = [event_onset, event_onset+(0.5*sample_rate*1), event_onset+(0.5*sample_rate*2), event_onset+(0.5*sample_rate*3), event_onset+(0.5*sample_rate*4), event_onset+(0.5*sample_rate*5), event_onset+(0.5*sample_rate*6), event_onset+(0.5*sample_rate*7)]
+            ax.set_xticks(xticks)
+            ax.set_xticklabels([0, self.pupil_step_lim[t][1]-(.5*6), self.pupil_step_lim[t][1]-(.5*5), self.pupil_step_lim[t][1]-(.5*4), self.pupil_step_lim[t][1]-(.5*3), self.pupil_step_lim[t][1]-(.5*2),  self.pupil_step_lim[t][1]-(.5*1), self.pupil_step_lim[t][1]])
+
+            # ax.set_ylim(ylim_feed)
+            # ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(tick_spacer))
+            ax.set_xlabel('Time from feedback (s)')
+            ax.set_ylabel('rs')
+            ax.set_title('{} {}'.format(time_locked, cond))
+            ax.legend()
+        
+            # whole figure format
+            sns.despine(offset=10, trim=True)
+            # plt.tight_layout()
+            fig.savefig(os.path.join(self.figure_folder,'{}_{}_evoked_correlation_information_betas_AQ_{}.pdf'.format(self.exp, time_locked, cond)))
+        print('success: plot_evoked_correlation_information_betas_AQ')
+        
+        
+    def phasic_correlation_information_betas_AQ(self,):
+        """Multiple regression of model parameters (surprise and information gain) onto pupil data.
+        
+        Notes:
+        -----
+        Drop omission trials.
+        """
+        
+        AQ = pd.read_csv(os.path.join(self.dataframe_folder, '{}_aq_scores_coded.csv'.format(self.exp)), float_precision='high')       
+        AQ.sort_values(by='subject', ascending=True, inplace=True) # sort by participant number
+        iv = 'aq_score'
+        aq_scores = np.array(AQ[iv])
+        
+        # Run multiple regression: pupil_feed_locked_t1 ~ model_i + model_D + pupil_baseline_feed_locked + RT
+        DF = pd.read_csv(os.path.join(self.dataframe_folder, '{}_subjects.csv'.format(self.exp)), float_precision='%.16f')
+        DF = DF.loc[:, ~DF.columns.str.contains('^Unnamed')] # remove all unnamed columns
+        
+        #### DROP OMISSIONS HERE ####
+        DF = DF[DF['drop_trial'] == 0] # drop trials
+        #############################
+        
+        dv = 'pupil_feed_locked_t1'
+        ivs = ['model_i', 'model_D', 'pupil_baseline_feed_locked', 'RT']
+
+        pd.set_option('display.float_format', lambda x: '%.16f' % x) # suppress scientific notation in pandas
+
+        for t,time_locked in enumerate(self.time_locked):
+
+            for cond in ['all_trials']:
+                
+                all_subjects = []
+                # loop subjects
+                for s, subj in enumerate(self.subjects):
+                    
+                    # get current subject's data only
+                    this_subj = int(''.join(filter(str.isdigit, subj)))
+                    SDATA = DF[DF['subject']==this_subj].reset_index()
+                    
+                    # get IVs
+                    X = SDATA[ivs].copy()  # true copy
+                    
+                    # Z-score IVs to account for large differences in scaling
+                    X = X.apply(stats.zscore)
+
+                    Y = SDATA[dv] # pupil dv
+                    X = sm.add_constant(X) # ivs
+
+                    # Fit OLS model
+                    model = sm.OLS(Y, X).fit()
+                    # save betas
+                    series = model.params
+                    series.name = subj
+                    all_subjects.append(series)
+                
+                # save output file
+                df_out = pd.concat(all_subjects, axis=1)
+                df_out = df_out.T # subjects x ivs
+                df_out['aq_score'] = aq_scores
+                df_out.to_csv(os.path.join(self.dataframe_folder, '{}_{}_phasic_regression_{}.csv'.format(self.exp, time_locked, cond)), float_format='%.16f')
+        print('success: phasic_correlation_information_betas_AQ')
+
+
+    def plot_phasic_correlation_information_betas_AQ(self,):
+        """Correlate and plot the information beta coefficients by AQ scores within the time window of interest.
+        
+        Notes
+        -----
+        GROUP LEVEL DATA
+        x-axis is model ivs.
+        """        
+        ylabel = 'rs'
+        xlabel = 'Predictors'
+        betas = ['model_i', 'model_D']
+                
+        for t,time_locked in enumerate(self.time_locked):
+            
+            for cond in ['all_trials']:
+                
+                DFIN = pd.read_csv(os.path.join(self.dataframe_folder, '{}_{}_phasic_regression_{}.csv'.format(self.exp, time_locked, cond)), float_precision='high')
+                DFIN = DFIN.loc[:, ~DFIN.columns.str.contains('^Unnamed')] # drop all unnamed columns
+                
+                n = len(betas)
+                fig, axes = plt.subplots(1, n, figsize=(5*n, 4))
+
+                for ax, model_iv in zip(axes, betas):
+                
+                    x = np.array(DFIN['aq_score'])
+                    y = np.array(DFIN[model_iv])
+                    r, pval = stats.spearmanr(x,y)
+                      
+                    # fit regression line
+                    ax.plot(x, y, 'o', markersize=3, color='purple') # marker, line, black
+                    m, b = np.polyfit(x, y, 1)
+                    ax.plot(x, m*x+b, color='black', alpha=.5)
+                
+                    # set figure parameters
+                    ax.set_title('rs = {}, p = {}'.format(np.round(r,2),np.round(pval,3)))
+
+                    # set figure parameters
+                    ax.set_xlabel('AQ score')
+                    ax.set_ylabel('Beta coefficient {}'.format(model_iv))
+
+                sns.despine(offset=10, trim=True)
+                plt.tight_layout()
+                fig.savefig(os.path.join(self.figure_folder, '{}_{}_phasic_correlation_information_betas_AQ_{}.pdf'.format(self.exp, time_locked, cond)))
+        print('success: plot_phasic_correlation_information_betas_AQ')
+        
                 

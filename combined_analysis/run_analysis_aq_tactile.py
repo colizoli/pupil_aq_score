@@ -176,7 +176,7 @@ if higher_level:
     '''
     # higherLevel.average_conditions()              # group level data frames for all main effects + interaction
     # higherLevel.regression_pupil_AQ()             # multiple regression of AQ components (IVs) onto average pupil response in time window of interest
-    higherLevel.correlation_AQ()                  # correlations between pupil, RT conditions and AQ
+    # higherLevel.correlation_AQ()                  # correlations between pupil, RT conditions and AQ
     # higherLevel.plot_AQ_histogram()               # plot a histogram of the AQ score
     # higherLevel.plot_phasic_pupil_unsigned_pe()   # plots the mean pupil response as a function of the frequency conditions
     # higherLevel.plot_AQ_covariance()              # plots the correlation matrix of the AQ sub-scores
@@ -187,4 +187,20 @@ if higher_level:
     ## higherLevel.correlation_AQ_blocks()              # correlations between pupil, RT conditions and AQ
     # higherLevel.regression_pupil_AQ_blocks()         # by block, multiple regression of AQ components (IVs) onto average pupil response in time window of interest
     # higherLevel.plot_regression_pupil_AQ_blocks()    # by block, plot pupil~AQ regression results
+    
+    ''' Ideal Learner Model
+    '''
+    # higherLevel.information_theory_estimates(flat_prior=True) # run model with uniform prior distribution
+    # higherLevel.average_information_conditions()
+    # higherLevel.plot_information()
+    # higherLevel.pupil_information_correlation_matrix()
+    # higherLevel.dataframe_evoked_pupil_information_betas()
+    # higherLevel.plot_evoked_pupil_information_betas()
+    # higherLevel.dataframe_evoked_correlation_information_betas_AQ()  # compute correlation of AQ onto beta coefficients (surprise & information gain) across pupil time course
+    higherLevel.plot_evoked_correlation_information_betas_AQ()
+    # higherLevel.phasic_correlation_information_betas_AQ()
+    # higherLevel.plot_phasic_correlation_information_betas_AQ()
+    
+    
+    
     
