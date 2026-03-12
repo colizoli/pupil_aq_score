@@ -821,7 +821,6 @@ class higherLevel(object):
         
         sample_rate = self.sample_rate 
         
-        ylim_feed = [-0.2, 0.2]
         tick_spacer = 0.1
         
         iv = 'aq_score'
@@ -834,6 +833,7 @@ class higherLevel(object):
         time_locked = 'feed_locked'
         t = 0
         CORR = pd.read_csv(os.path.join(self.dataframe_folder,'{}_{}_evoked_correlation_{}.csv'.format(self.exp, time_locked, iv)), float_precision='high')
+        CORR = CORR.loc[:, ~CORR.columns.str.contains('^Unnamed')] # remove all unnamed columns
         
         #######################
         # FEEDBACK PLOT R FOR EACH PUPIl COND
@@ -860,7 +860,8 @@ class higherLevel(object):
             
         # set figure parameters
         ax.axvline(int(abs(self.pupil_step_lim[t][0]*sample_rate)), lw=1, alpha=1, color = 'k') # Add vertical line at t=0
-        ax.axhline(0, lw=1, alpha=1, color = 'k') # Add horizontal line at t=0
+        # ax.axhline(0, lw=1, alpha=1, color = 'k') # Add horizontal line at t=0
+        ax.plot([event_onset-(0.5*sample_rate*1), event_onset+(0.5*sample_rate*7)], [0, 0], lw=1, alpha=1, color='k') # fix problem of horizontal line extending too far
         
         # Shade all time windows of interest in grey, will be different for events
         for twi in self.pupil_time_of_interest[t]:
@@ -871,8 +872,8 @@ class higherLevel(object):
         xticks = [event_onset, event_onset+(0.5*sample_rate*1), event_onset+(0.5*sample_rate*2), event_onset+(0.5*sample_rate*3), event_onset+(0.5*sample_rate*4), event_onset+(0.5*sample_rate*5), event_onset+(0.5*sample_rate*6), event_onset+(0.5*sample_rate*7)]
         ax.set_xticks(xticks)
         ax.set_xticklabels([0, self.pupil_step_lim[t][1]-(.5*6), self.pupil_step_lim[t][1]-(.5*5), self.pupil_step_lim[t][1]-(.5*4), self.pupil_step_lim[t][1]-(.5*3), self.pupil_step_lim[t][1]-(.5*2),  self.pupil_step_lim[t][1]-(.5*1), self.pupil_step_lim[t][1]])
+        ax.set_xlim([event_onset-(0.5*sample_rate*1), event_onset+(0.5*sample_rate*7)]) # to keep hline within data bounds
 
-        # ax.set_ylim(ylim_feed)
         ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(tick_spacer))
         ax.set_xlabel('Time from feedback (s)')
         ax.set_ylabel('rs')
@@ -883,7 +884,6 @@ class higherLevel(object):
         sns.despine(offset=10, trim=True)
         # plt.tight_layout()
         fig.savefig(os.path.join(self.figure_folder,'{}_{}_evoked_correlation_{}.pdf'.format(self.exp, time_locked, iv)))
-        # shell()
         print('success: plot_evoked_correlation_AQ')
         
                 
@@ -2052,22 +2052,14 @@ class higherLevel(object):
         
         sample_rate = self.sample_rate 
         
-        ylim_feed = [-0.2, 0.2]
-        tick_spacer = 0.1
+        tick_spacer = 0.2
         
         iv = 'aq_score'
-    
-        # colors = ['teal', 'purple', 'blue', 'red']
-        # alphas = [1]
-        # labels = ['model_i' , 'model_D', 'pupil_baseline_feed_locked', 'RT']
+
         colors = ['teal', 'purple', ] 
         alphas = [1]
         labels = ['model_i' , 'model_D', ]
-        
-        # colors = ['black', ]
-        # alphas = [1]
-        # labels = ['constant' ,]
-        
+
         time_locked = 'feed_locked'
         t = 0
         
@@ -2111,8 +2103,7 @@ class higherLevel(object):
             ax.set_xticks(xticks)
             ax.set_xticklabels([0, self.pupil_step_lim[t][1]-(.5*6), self.pupil_step_lim[t][1]-(.5*5), self.pupil_step_lim[t][1]-(.5*4), self.pupil_step_lim[t][1]-(.5*3), self.pupil_step_lim[t][1]-(.5*2),  self.pupil_step_lim[t][1]-(.5*1), self.pupil_step_lim[t][1]])
 
-            # ax.set_ylim(ylim_feed)
-            # ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(tick_spacer))
+            ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(tick_spacer))
             ax.set_xlabel('Time from feedback (s)')
             ax.set_ylabel('Beta coefficient')
             ax.set_title('{} {}'.format(time_locked, cond))
@@ -2191,7 +2182,6 @@ class higherLevel(object):
         
         sample_rate = self.sample_rate 
         
-        ylim_feed = [-0.2, 0.2]
         tick_spacer = 0.1
         
         iv = 'aq_score'
@@ -2203,6 +2193,7 @@ class higherLevel(object):
         time_locked = 'feed_locked'
         t = 0
         CORR = pd.read_csv(os.path.join(self.dataframe_folder,'{}_{}_evoked_correlation_information_betas_AQ.csv'.format(self.exp, time_locked)), float_precision='high')
+        CORR = CORR.loc[:, ~CORR.columns.str.contains('^Unnamed')] # remove all unnamed columns
         
         for i,cond in enumerate(['all_trials']):
         
@@ -2241,11 +2232,11 @@ class higherLevel(object):
             xticks = [event_onset, event_onset+(0.5*sample_rate*1), event_onset+(0.5*sample_rate*2), event_onset+(0.5*sample_rate*3), event_onset+(0.5*sample_rate*4), event_onset+(0.5*sample_rate*5), event_onset+(0.5*sample_rate*6), event_onset+(0.5*sample_rate*7)]
             ax.set_xticks(xticks)
             ax.set_xticklabels([0, self.pupil_step_lim[t][1]-(.5*6), self.pupil_step_lim[t][1]-(.5*5), self.pupil_step_lim[t][1]-(.5*4), self.pupil_step_lim[t][1]-(.5*3), self.pupil_step_lim[t][1]-(.5*2),  self.pupil_step_lim[t][1]-(.5*1), self.pupil_step_lim[t][1]])
+            ax.set_xlim([event_onset-(0.5*sample_rate*1), event_onset+(0.5*sample_rate*7)]) # to keep hline within data bounds
 
-            # ax.set_ylim(ylim_feed)
-            # ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(tick_spacer))
+            ax.yaxis.set_major_locator(matplotlib.ticker.MultipleLocator(tick_spacer))
             ax.set_xlabel('Time from feedback (s)')
-            ax.set_ylabel('rs')
+            ax.set_ylabel('zs')
             ax.set_title('{} {}'.format(time_locked, cond))
             ax.legend()
         
@@ -2329,6 +2320,8 @@ class higherLevel(object):
         ylabel = 'rs'
         xlabel = 'Predictors'
         betas = ['model_i', 'model_D']
+        colors = ['teal', 'purple']
+        subplot_counter = 0
                 
         for t,time_locked in enumerate(self.time_locked):
             
@@ -2338,16 +2331,17 @@ class higherLevel(object):
                 DFIN = DFIN.loc[:, ~DFIN.columns.str.contains('^Unnamed')] # drop all unnamed columns
                 
                 n = len(betas)
-                fig, axes = plt.subplots(1, n, figsize=(5*n, 4))
+                fig, axes = plt.subplots(n, 1, figsize=(2, 2*n))
 
                 for ax, model_iv in zip(axes, betas):
-                
+                    ax.set_box_aspect(1)
+                    
                     x = np.array(DFIN['aq_score'])
                     y = np.array(DFIN[model_iv])
                     r, pval = stats.spearmanr(x,y)
                       
                     # fit regression line
-                    ax.plot(x, y, 'o', markersize=3, color='purple') # marker, line, black
+                    ax.plot(x, y, 'o', markersize=3, color=colors[subplot_counter]) # marker, line, black
                     m, b = np.polyfit(x, y, 1)
                     ax.plot(x, m*x+b, color='black', alpha=.5)
                 
@@ -2357,8 +2351,13 @@ class higherLevel(object):
                     # set figure parameters
                     ax.set_xlabel('AQ score')
                     ax.set_ylabel('Beta coefficient {}'.format(model_iv))
-
-                sns.despine(offset=10, trim=True)
+                    ax.set_xticks([75, 100, 125, 150])
+                    if model_iv == 'model_i':
+                        ax.set_yticks(np.linspace(-1, 1.5, 6))
+                    if model_iv == 'model_D':
+                        ax.set_yticks(np.linspace(-1, 2, 6))   
+                    subplot_counter =+ 1 
+                                        
                 plt.tight_layout()
                 fig.savefig(os.path.join(self.figure_folder, '{}_{}_phasic_correlation_information_betas_AQ_{}.pdf'.format(self.exp, time_locked, cond)))
         print('success: plot_phasic_correlation_information_betas_AQ')

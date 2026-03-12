@@ -197,9 +197,9 @@ if higher_level:
     # higherLevel.dataframe_evoked_pupil_information_betas()
     # higherLevel.plot_evoked_pupil_information_betas()
     # higherLevel.dataframe_evoked_correlation_information_betas_AQ()  # compute correlation of AQ onto beta coefficients (surprise & information gain) across pupil time course
-    higherLevel.plot_evoked_correlation_information_betas_AQ()
+    # higherLevel.plot_evoked_correlation_information_betas_AQ()
     # higherLevel.phasic_correlation_information_betas_AQ()
-    # higherLevel.plot_phasic_correlation_information_betas_AQ()
+    higherLevel.plot_phasic_correlation_information_betas_AQ()
     
     
     
