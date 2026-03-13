@@ -1048,7 +1048,7 @@ class higherLevel(object):
                         r,pval = stats.spearmanr(x,y)
                               
                         # fit regression line
-                        ax.plot(x, y, 'o', markersize=3, color='purple') # marker, line, black
+                        ax.plot(x, y, 'o', markersize=3, color='blue') # marker, line, black
                         m, b = np.polyfit(x, y, 1)
                         ax.plot(x, m*x+b, color='black',alpha=.5)
                         
@@ -1231,66 +1231,66 @@ class higherLevel(object):
         print('success: plot_behav_blocks')
         
     
-    # def correlation_AQ_blocks(self,):
-    #     """PER BLOCK calculate the Spearman rank correlations between AQ score and unsigned prediction errors. Plot data.
-    #
-    #     Notes
-    #     -----
-    #     ivs = ['aq_score']
-    #     dvs = ['pupil_feed_locked_t1']
-    #     conditions = ['frequency']
-    #     freqs = ['20', '80'] # low, high to contrast
-    #     """
-    #
-    #     AQ = pd.read_csv(os.path.join(self.dataframe_folder, '{}_aq_scores_coded.csv'.format(self.exp)), float_precision='high')
-    #     AQ = AQ.loc[:, ~AQ.columns.str.contains('^Unnamed')] # remove all unnamed columns
-    #
-    #     iv = 'aq_score'
-    #     dv = 'pupil_feed_locked_t1'
-    #     cond = 'block-frequency'
-    #     freqs = ['20', '80'] # low, high to contrast
-    #     blocks = [1,2,3,4]
-    #
-    #     # new figure for every IV, block
-    #     fig = plt.figure(figsize=(2,2*len(blocks)))
-    #     counter = 1 # subplot counter
-    #
-    #     P = pd.read_csv(os.path.join(self.jasp_folder,'{}_{}_{}_rmanova.csv'.format(self.exp, cond, dv)), float_precision = 'high')
-    #     P = P.loc[:, ~P.columns.str.contains('^Unnamed')] # remove all unnamed columns
-    #
-    #     # make sure subjects are aligned
-    #     M = AQ.merge(P, how='inner', on=['subject'])
-    #
-    #     # SPLIT BY BLOCK
-    #     for block in blocks:
-    #
-    #         ax = fig.add_subplot(len(blocks), 1, counter) # 1 subplot per bin window
-    #         ax.set_box_aspect(1)
-    #
-    #         M['main_effect_{}_block{}'.format(cond, block)] = (M['(20, {}.0)'.format(block)]-M['(80, {}.0)'.format(block)])
-    #         ax.set_ylabel('{} ({}%-{}%)'.format(dv, freqs[0], freqs[1]))
-    #
-    #         # correlation
-    #         x = np.array(M[iv])
-    #         y = np.array(M['main_effect_{}_block{}'.format(cond, block)])
-    #         r,pval = stats.spearmanr(x,y)
-    #
-    #         # fit regression line
-    #         ax.plot(x, y, 'o', markersize=3, color='purple') # marker, line, black
-    #         m, b = np.polyfit(x, y, 1)
-    #         ax.plot(x, m*x+b, color='black',alpha=.5)
-    #
-    #         # set figure parameters
-    #         ax.set_title('block={}, rs = {}, p = {}'.format(block, np.round(r,2),np.round(pval,3)))
-    #         ax.set_xticks([75, 100, 125, 150])
-    #         ax.set_ylim([-2, 4])
-    #         ax.set_xlabel(iv)
-    #
-    #         counter = counter + 1
-    #
-    #         plt.tight_layout()
-    #         fig.savefig(os.path.join(self.figure_folder,'{}_correlation_{}_blocks.pdf'.format(self.exp, iv)))
-    #     print('success: correlation_AQ_blocks')
+    def correlation_AQ_blocks(self,):
+        """PER BLOCK calculate the Spearman rank correlations between AQ score and unsigned prediction errors. Plot data.
+
+        Notes
+        -----
+        ivs = ['aq_score']
+        dvs = ['pupil_feed_locked_t1']
+        conditions = ['frequency']
+        freqs = ['20', '80'] # low, high to contrast
+        """
+
+        AQ = pd.read_csv(os.path.join(self.dataframe_folder, '{}_aq_scores_coded.csv'.format(self.exp)), float_precision='high')
+        AQ = AQ.loc[:, ~AQ.columns.str.contains('^Unnamed')] # remove all unnamed columns
+
+        iv = 'aq_score'
+        dv = 'pupil_feed_locked_t1'
+        cond = 'block-frequency'
+        freqs = ['20', '80'] # low, high to contrast
+        blocks = [1,2,3,4]
+
+        # new figure for every IV, block
+        fig = plt.figure(figsize=(2,2*len(blocks)))
+        counter = 1 # subplot counter
+
+        P = pd.read_csv(os.path.join(self.jasp_folder,'{}_{}_{}_rmanova.csv'.format(self.exp, cond, dv)), float_precision = 'high')
+        P = P.loc[:, ~P.columns.str.contains('^Unnamed')] # remove all unnamed columns
+
+        # make sure subjects are aligned
+        M = AQ.merge(P, how='inner', on=['subject'])
+
+        # SPLIT BY BLOCK
+        for block in blocks:
+
+            ax = fig.add_subplot(len(blocks), 1, counter) # 1 subplot per bin window
+            ax.set_box_aspect(1)
+
+            M['main_effect_{}_block{}'.format(cond, block)] = (M['(20, {}.0)'.format(block)]-M['(80, {}.0)'.format(block)])
+            ax.set_ylabel('{} ({}%-{}%)'.format(dv, freqs[0], freqs[1]))
+
+            # correlation
+            x = np.array(M[iv])
+            y = np.array(M['main_effect_{}_block{}'.format(cond, block)])
+            r,pval = stats.spearmanr(x,y)
+
+            # fit regression line
+            ax.plot(x, y, 'o', markersize=3, color='blue') # marker, line, black
+            m, b = np.polyfit(x, y, 1)
+            ax.plot(x, m*x+b, color='black',alpha=.5)
+
+            # set figure parameters
+            ax.set_title('block={}, rs = {}, p = {}'.format(block, np.round(r,2),np.round(pval,3)))
+            ax.set_xticks([75, 100, 125, 150])
+            ax.set_ylim([-2, 4])
+            ax.set_xlabel(iv)
+
+            counter = counter + 1
+
+            plt.tight_layout()
+            fig.savefig(os.path.join(self.figure_folder,'{}_correlation_{}_blocks.pdf'.format(self.exp, iv)))
+        print('success: correlation_AQ_blocks')
         
         
     def regression_pupil_AQ_blocks(self, ):
